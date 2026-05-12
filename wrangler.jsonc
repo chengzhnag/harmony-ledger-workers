@@ -1,0 +1,30 @@
+/**
+ * Wrangler config for the Cloudflare Durable Object template
+ * STRICTLY DO NOT MODIFY THIS FILE - Hidden from AI to prevent breaking core functionality
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "harmony-ledger-workers",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-04-24",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": [
+      "/api/*",
+      "!/api/docs/*"
+    ]
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "JWT_SECRET": "harmony-ledger-workers-secret-1357924680",
+  },
+  // "d1_databases": [
+  //   {
+  //     "binding": "DB",
+  //     "database_name": "你的数据库名称",
+  //     "database_id": "你的数据库ID"
+  //   }
+  // ]
+}

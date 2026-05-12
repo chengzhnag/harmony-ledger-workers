@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d9488" />
+    <meta name="description" content="礼尚-📝你的人情来往：基于 Cloudflare Workers 的现代化家庭记账与协作应用。支持多用户、数据分析、图表、CSV 导出、暗黑模式。" />
+    <meta name="keywords" content="礼尚, 人情来往, 记账, Cloudflare Workers, React, TypeScript, 家庭账本, D1, shadcn, 分析" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="礼尚-📝你的人情来往 - 云端家庭协作记账" />
+    <meta property="og:description" content="礼尚-📝你的人情来往：记账应用，支持多用户协作与可视化，基于 Cloudflare Workers 技术栈。" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="礼尚-📝你的人情来往 - 云端家庭协作记账" />
+    <meta name="twitter:description" content="礼尚-📝你的人情来往：记账应用，支持多用户协作与数据可视化，基于 Cloudflare Workers 技术栈。" />
+    <link rel="icon" type="image/svg+xml" href="/ledge.svg" />
+    <title>礼尚-📝你的人情来往</title>
+    <script>
+      window.addEventListener('error', (event) => {
+        const isOurAppError = event.filename && event.filename.startsWith(window.location.origin);
+        if (isOurAppError) {
+          navigator.sendBeacon('/api/client-errors', JSON.stringify({
+            message: event.message,
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+            source: event.filename,
+            lineno: event.lineno,
+            colno: event.colno,
+            stack: event.error ? event.error.stack : null,
+            timestamp: new Date().toISOString()
+          }));
+        }
+      }, true);
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

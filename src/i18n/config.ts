@@ -1,0 +1,80 @@
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
+const resources = {
+  zh: {
+    translation: {
+      nav: { home: '首页', ledgers: '礼簿', analytics: '统计', settings: '设置', contacts: '联系人' },
+      dashboard: { balance: '当前结余', received: '总收到', given: '总送出', activity: '最近记录', viewAll: '查看全部', viewTimeline: '时间轴查看全部', noRecords: '还没有记录，点下方"+"开启第一笔', reminders: '提醒事项', shareTitle: '我的和谐账本概览', copied: '概览已复制到剪贴板', copyFailed: '复制失败', shareText: '【和谐账本】{{name}} 的人情概览：\n总收到：¥{{totalReceived}}\n总送出：¥{{totalGiven}}\n净结余：¥{{balance}}\n记录点滴人情，温馨维系社交！\n\n访问 {{domain}} 立即体验' },
+      common: { delete: '删除', cancel: '取消', confirm: '确定', edit: '编辑', loading: '加载中...', success: '操作成功', error: '发生错误', save: '保存', deleteRecordConfirm: '确定删除该条记录？' },
+      form: { title: '新增人情记录', editTitle: '修改人情记录', update: '更新记录', give: '送出礼金', receive: '收到礼金', amount: '金额', person: '往来对象', category: '事项类别', type: '类型', note: '备注', date: '日期', submit: '确定记录', saving: '保存中...', description: '详细备注', ledger: '关联礼簿', ledger_none: '独立记录 (不关联)', optional: '(选填)', saveSuccess: '记录已成功同步', saveError: '保存失败', noFamily: '请先加入家庭小组', personPlaceholder: '输入姓名', amountPlaceholder: '0.00', amountRequired: '金额必须大于0', nameRequired: '请输入姓名', eventTypeRequired: '请选择事项类型' },
+      contacts: { title: '社交圈', subtitle: '管理您的人情往来对象', add: '新增联系人', addSuccess: '新增联系人成功', search: '搜索联系人...', name: '姓名', remarks: '备注', namePlaceholder: '请输入联系人姓名', remarksPlaceholder: '可选：备注信息（如昵称、职位等）', noContacts: '暂无联系人', deleteConfirm: '确定删除该联系人吗？相关记录将不再关联此人。', edit: '编辑联系人', saveSuccess: '保存成功', deleteSuccess: '已删除', syncPrompt: '将旧记录中的姓名同步为专业联系人', syncButton: '同步现有记录', syncSuccess: '同步完成，新增了 {{count}} 个联系人' },
+      timeline: { title: '时间轴', subtitle: '按时间顺序查看所有记录', noRecords: '暂无记录', allLoaded: '已全部加载' },
+      contactDetail: { title: '联系人详情', back: '返回联系人列表', totalGiven: '总送出', totalReceived: '总收到', netBalance: '净结余', recordCount: '往来记录数', records: '来往记录', noRecords: '暂无往来记录', eventType: '事项类型', amount: '金额', date: '日期', description: '备注', give: '送出', receive: '收到', stats: '统计分析', monthlyTrend: '月度趋势', categoryDistribution: '事项分布', allRecords: '全部记录' },
+      analytics: { title: '数据分析', trends: '收支趋势', categories: '分类占比', summary: '数据概览', topEvent: '最常往来', maxGift: '最大礼金', no_ledger: '无关联', topEvent_Wedding: '结婚', topEvent_Birthday: '生日', topEvent_Graduation: '升学', topEvent_Baby: '宝宝', topEvent_FirstBirthday: '周岁', topEvent_Festival: '节日', topEvent_Moving: '乔迁', topEvent_Visit: '探望', topEvent_Funeral: '白事', topEvent_Other: '其它' },
+      settings: { title: '设置', profile: '个人资料', family: '家庭设置', preferences: '系统偏好', language: '语言', data: '数据管理', export: '导出数据 (JSON)', import: '导入恢复', social: '社交与分享', shareCard: '生成总结卡片', familyGroup: '管理家庭小组', inviteCode: '家庭邀请码', copyInvite: '复制邀请码', copySuccess: '邀请码已复制', copyError: '复制失败', logout: '退出登录', adminDashboard: '管理员面板', feedback: '发送反馈', feedbackPrompt: '请输入您的反馈建议：', feedbackSuccess: '感谢您的反馈！', feedbackError: '发送失败', exportSuccess: '备份导出成功', exportError: '导出失败', importSuccess: '数据导入成功', importError: '导入失败，格式错误', migrateData: '数据迁移与同步', switchFamily: '切换家庭账本', switchSuccess: '切换成功，即将刷新页面', switchError: '切换失败', leaveFamily: '退出当前家庭', leaveConfirm: '退出后，您将无法访问该家庭的礼金数据。确定退出吗？', leaveSuccess: '已成功退出家庭', myFamilies: '我的家庭列表' },
+      ledgers: { subtitle: '管理您的活动礼金账簿', addLedger: '新建礼簿', editLedger: '编辑礼簿', deleteConfirm: '该礼簿下明细也将同步删除，确定要删除这个礼簿吗？', deleteWarning: '删除礼簿不会删除其包含的明细记录，这些记录将变为独立状态。', eventTabs: '礼簿管理', detailTabs: '所有明细', noLedgers: '暂无礼簿', noLedgersHelp: '创建一个活动礼簿以专门追踪特定社交活动的礼金往来。', createNow: '立即创建', totalAmount: '合计', searchPlaceholder: '搜索姓名、活动或备注...', noResults: '未找到匹配的记录', allLoaded: '所有记录已加载' },
+      ledgerForm: { title: '创建新礼簿', name: '礼簿标题', namePlaceholder: '例如：表哥婚礼、外公八十寿辰', date: '活动日期', dateRequired: '请选择活动日期', note: '备注描述', notePlaceholder: '选填，例如地点或具体事由', submit: '立即创建', submitting: '正在创建...', success: '礼簿创建成功', error: '创建失败，请重试', titleRequired: '请输入礼簿名称' },
+      familyDialog: { title: '加入家庭小组', desc: '输入家庭成员分享给您的邀请码，即可实时同步账本。', label: '家庭邀请码', placeholder: '例如: F1-8892', submit: '立即加入', submitting: '正在加入...', success: '成功加入家庭，即将刷新页面', error: '加入失败，请检查邀请码', emptyCode: '请输入邀请码' },
+      shareCard: { title: '和谐账本 · Harmony Ledger', report: '{{name}} 的人情报告', balanceLabel: '当前结余 (CNY)', topEventLabel: '最常往来事项', footer: '数字化管理人情，温馨维系社交', close: '关闭', download: '下载图片', saveSuccess: '图片已保存' },
+      recordDetail: { title: '人情往来记录详情', back: '返回列表', noRecords: '暂无记录' },
+      ledgerDetail: { back: '返回列表', summary: '数据摘要', records: '礼簿明细', noRecords: '该礼簿中暂无明细', totalBalance: '礼簿合计', allLoaded: '所有记录已加载' },
+      login: { brand: '和谐账本', slogan: 'Harmony Ledger · 礼尚往来', loginTitle: '欢迎回来', loginSubtitle: '登录您的账号，同步家庭礼金明细', registerTitle: '开启记录', registerSubtitle: '数字化管理人情往来，温馨维系社交关系', email: '邮箱账号', emailPlaceholder: 'name@example.com', emailError: '请输入有效的邮箱', password: '访问密码', passwordPlaceholder: '••••••••', passwordError: '密码至少6位', name: '您的称呼', namePlaceholder: '张三', nameError: '请输入姓名', loginButton: '立即登录', registerButton: '创建账号', forgotPassword: '忘记密码？', noAccount: '还没有账号？', hasAccount: '已有账号？', register: '立即注册', backToLogin: '返回登录', footer: '数字化管理人情。', welcomeBack: '欢迎回来，即将跳转到首页！', loginFailed: '登录失败，请检查账号密码', registerSuccess: '注册成功，已为您创建专属家庭账本', registerFailed: '注册失败，请稍后重试', forgotPwdInfo: '密码找回功能正在开发中', forgotPwdDesc: '请联系管理员或使用注册邮箱重新尝试。' },
+      protectedRoute: { redirecting: '正在跳转到登录页...' },
+      errors: {
+        MISSING_FIELDS: '缺少必填字段',
+        EMAIL_ALREADY_REGISTERED: '该邮箱已被注册',
+        CREATE_USER_FAILED: '创建账号失败',
+        INVALID_CREDENTIALS: '邮箱或密码错误',
+        UNAUTHORIZED: '未授权，请重新登录',
+        ACCESS_DENIED: '无权访问',
+        NOT_FOUND: '未找到',
+        default: '请求失败，请稍后再试'
+      }
+    }
+  },
+  en: {
+    translation: {
+      nav: { home: 'Home', ledgers: 'Ledgers', analytics: 'Stats', settings: 'Settings', contacts: 'Contacts' },
+      dashboard: { balance: 'Net Balance', received: 'Total Received', given: 'Total Given', activity: 'Recent Activity', viewAll: 'View All', viewTimeline: 'View all on timeline', noRecords: 'No records yet. Tap "+" to start.', reminders: 'Reminders', shareTitle: 'My Harmony Ledger Overview', copied: 'Summary copied to clipboard', copyFailed: 'Copy failed', shareText: "[Harmony Ledger] {{name}}'s Renqing summary:\nTotal received: ¥{{totalReceived}}\nTotal given: ¥{{totalGiven}}\nNet balance: ¥{{balance}}\nManaging social connections with warmth!\n\nVisit {{domain}} to get started" },
+      common: { delete: 'Delete', cancel: 'Cancel', confirm: 'Confirm', edit: 'Edit', loading: 'Loading...', success: 'Success', error: 'Error', save: 'Save', deleteRecordConfirm: 'Confirm to delete this record?' },
+      form: { title: 'New Record', editTitle: 'Edit Record', update: 'Update Record', give: 'Give', receive: 'Receive', amount: 'Amount', person: 'Person', category: 'Event Type', type: 'Type', note: 'Note', date: 'Date', submit: 'Save Record', saving: 'Saving...', description: 'Details', ledger: 'Link Ledger', ledger_none: 'Independent (No link)', optional: '(Optional)', saveSuccess: 'Record synced successfully', saveError: 'Save failed', noFamily: 'Please join a family group first', personPlaceholder: 'Enter name', amountPlaceholder: '0.00', amountRequired: 'Amount must be greater than 0', nameRequired: 'Name is required', eventTypeRequired: 'Please select an event type' },
+      contacts: { title: 'Contacts', subtitle: 'Manage your social connections', add: 'Add Contact', addSuccess: 'Contact added successfully', search: 'Search contacts...', name: 'Name', remarks: 'Remarks', namePlaceholder: 'Enter contact name', remarksPlaceholder: 'Optional: Notes (nickname, position, etc.)', noContacts: 'No contacts yet', deleteConfirm: 'Are you sure you want to delete this contact? Related records will be unlinked.', edit: 'Edit Contact', saveSuccess: 'Saved', deleteSuccess: 'Deleted', syncPrompt: 'Link existing records to professional contacts', syncButton: 'Sync Records', syncSuccess: 'Sync complete, created {{count}} contacts' },
+      timeline: { title: 'Timeline', subtitle: 'View all records in chronological order', noRecords: 'No records yet', allLoaded: 'All records loaded' },
+      contactDetail: { title: 'Contact Details', back: 'Back to Contacts', totalGiven: 'Total Given', totalReceived: 'Total Received', netBalance: 'Net Balance', recordCount: 'Records Count', records: 'Transaction Records', noRecords: 'No records yet', eventType: 'Event Type', amount: 'Amount', date: 'Date', description: 'Notes', give: 'Give', receive: 'Receive', stats: 'Statistics', monthlyTrend: 'Monthly Trend', categoryDistribution: 'Category Distribution', allRecords: 'All Records' },
+      analytics: { title: 'Analytics', trends: 'Trends', categories: 'Categories', summary: 'Summary', topEvent: 'Top Event', maxGift: 'Max Gift', no_ledger: 'No Ledger', topEvent_Wedding: 'Wedding', topEvent_Birthday: 'Birthday', topEvent_Graduation: 'Graduation', topEvent_Baby: 'Baby', topEvent_FirstBirthday: 'First Birthday', topEvent_Festival: 'Festival', topEvent_Moving: 'Moving', topEvent_Visit: 'Visit', topEvent_Funeral: 'Funeral', topEvent_Other: 'Other' },
+      settings: { title: 'Settings', profile: 'Profile', family: 'Family', preferences: 'Preferences', language: 'Language', data: 'Data Management', export: 'Export Backup', import: 'Import Restore', social: 'Social & Sharing', shareCard: 'Generate Summary Card', familyGroup: 'Manage Family Group', inviteCode: 'Family Invite Code', copyInvite: 'Copy Code', copySuccess: 'Invite code copied', copyError: 'Copy failed', logout: 'Logout', adminDashboard: 'Admin Panel', feedback: 'Send Feedback', feedbackPrompt: 'Please enter your feedback:', feedbackSuccess: 'Thank you for your feedback!', feedbackError: 'Failed to send feedback', exportSuccess: 'Backup exported successfully', exportError: 'Export failed', importSuccess: 'Data imported successfully', importError: 'Import failed, invalid format', migrateData: 'Data Sync & Migration', switchFamily: 'Switch Family Ledger', switchSuccess: 'Switched successfully, refreshing...', switchError: 'Failed to switch family', leaveFamily: 'Leave Current Family', leaveConfirm: 'After leaving, you will no longer have access to this family\'s data. Are you sure?', leaveSuccess: 'Left family successfully', myFamilies: 'My Family Groups' },
+      ledgers: { subtitle: 'Manage your event-based gift lists', addLedger: 'New Ledger', editLedger: 'Edit Ledger', deleteConfirm: 'All details under this ledger will also be deleted. Are you sure you want to delete this ledger?', deleteWarning: 'Deleting a ledger will not delete its entries. They will become independent records.', eventTabs: 'Event Ledgers', detailTabs: 'All Transactions', noLedgers: 'No Ledgers Found', noLedgersHelp: 'Create your first event ledger to track specific social activities.', createNow: 'Create Now', totalAmount: 'Totals', searchPlaceholder: 'Search name, event, notes...', noResults: 'No records matching your search', allLoaded: 'All records loaded' },
+      ledgerForm: { title: 'Create New Ledger', name: 'Ledger Title', namePlaceholder: 'e.g. Cousin\'s Wedding', date: 'Event Date', dateRequired: 'Please select an event date', note: 'Description', notePlaceholder: 'Optional: location or specific details', submit: 'Create Now', submitting: 'Creating...', success: 'Ledger created successfully', error: 'Failed to create, please try again', titleRequired: 'Please enter a title' },
+      familyDialog: { title: 'Join Family Group', desc: 'Enter the invite code shared by your family member to sync ledgers.', label: 'Invite Code', placeholder: 'e.g. F1-8892', submit: 'Join Now', submitting: 'Joining...', success: 'Joined family: {{name}}', error: 'Failed to join, check the code', emptyCode: 'Please enter invite code' },
+      shareCard: { title: 'Harmony Ledger', report: 'Report for {{name}}', balanceLabel: 'Net Balance (CNY)', topEventLabel: 'Top Event Category', footer: 'Managing connections with digital warmth', close: 'Close', download: 'Download Image', saveSuccess: 'Image saved successfully' },
+      recordDetail: { title: 'Record Details', back: 'Back to List', noRecords: 'No records yet' },
+      ledgerDetail: { back: 'Back to List', summary: 'Summary', records: 'Ledger Entries', noRecords: 'No entries in this ledger yet', totalBalance: 'Ledger Total', allLoaded: 'All records loaded' },
+      login: { brand: 'Harmony Ledger', slogan: 'Harmony Ledger · Gift Tracker', loginTitle: 'Welcome Back', loginSubtitle: 'Sign in to sync your family ledger', registerTitle: 'Get Started', registerSubtitle: 'Digitally manage social gifts, warmly maintain connections', email: 'Email Address', emailPlaceholder: 'name@example.com', emailError: 'Please enter a valid email', password: 'Access Password', passwordPlaceholder: '••••••••', passwordError: 'Password must be at least 6 characters', name: 'Your Name', namePlaceholder: 'John Doe', nameError: 'Please enter your name', loginButton: 'Sign In', registerButton: 'Create Account', forgotPassword: 'Forgot Password?', noAccount: "Don't have an account?", hasAccount: 'Already have an account?', register: 'Sign Up', backToLogin: 'Back to Login', footer: 'Managing connections with digital warmth.', welcomeBack: 'Welcome back, redirecting to home!', loginFailed: 'Login failed, please check your credentials', registerSuccess: 'Registration successful, your family ledger is ready!', registerFailed: 'Registration failed, please try again later', forgotPwdInfo: 'Password recovery is under development', forgotPwdDesc: 'Please contact admin or try registering again with your email.' },
+      protectedRoute: { redirecting: 'Redirecting to login...' },
+      errors: {
+        MISSING_FIELDS: 'Missing required fields',
+        EMAIL_ALREADY_REGISTERED: 'This email is already registered',
+        CREATE_USER_FAILED: 'Failed to create account',
+        INVALID_CREDENTIALS: 'Invalid email or password',
+        UNAUTHORIZED: 'Unauthorized, please log in again',
+        ACCESS_DENIED: 'Access denied',
+        NOT_FOUND: 'Not found',
+        default: 'Request failed, please try again later'
+      }
+    }
+  }
+};
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources,
+    fallbackLng: 'zh',
+    interpolation: { escapeValue: false },
+    detection: {
+      order: ['localStorage', 'navigator'],
+      caches: ['localStorage'],
+    }
+  });
+export default i18n;
