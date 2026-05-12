@@ -195,7 +195,7 @@ bun run deploy
 | `bun run cf-typegen` | 生成 Cloudflare Worker 类型声明 |
 
 
-## 手动部署：Fork 项目 Cloudflare 部署
+## 🏋️‍♀️ 手动部署：Fork 项目 Cloudflare 部署
 
 如果你想快速部署到自己的 Cloudflare 账号，推荐使用 Fork 方式：
 
@@ -285,7 +285,7 @@ bun run deploy
 4. 推送到分支（`git push origin feature/新功能`）
 5. 提交 Pull Request
 
-## 支持我
+## ⬆️ 支持我
 
 如果你喜欢我的项目或工作，并希望通过捐赠来支持我，非常感谢您的慷慨！
 
