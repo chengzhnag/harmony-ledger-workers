@@ -194,6 +194,48 @@ bun run deploy
 | `bun run lint` | 运行 ESLint 检查 |
 | `bun run cf-typegen` | 生成 Cloudflare Worker 类型声明 |
 
+
+## 手动部署：Fork 项目 Cloudflare 部署
+
+如果你想快速部署到自己的 Cloudflare 账号，推荐使用 Fork 方式：
+
+1.  **Star 和 Fork 项目**
+    - 访问项目仓库：[和谐账本](https://github.com/chengzhnag/harmony-ledger-workers)
+    - 点击右上角的 `Star` ⭐️ ⭐️ 按钮，再点击 `Fork` 按钮将项目复制到你的 GitHub 账户。
+
+2.  **登录 Cloudflare**
+    - 访问 [Cloudflare Dashboard](https://dash.cloudflare.com/)，登录你的账户。
+
+3.  **创建 D1 数据库并初始化表**
+    - 在左侧导航栏选择 **存储和数据库** > **D1 SQL 数据库**。
+    - 点击 **创建数据库**，按提示创建数据库实例。
+    - 记录数据库的 **名称**（例如：`harmony-ledger`）。
+    ![image](https://cdn.jsdelivr.net/gh/Zgrowth/image@master/document/image.1zivsdd8hh.webp)
+    - 初始化表：
+      - **控制台**（在 D1 数据库管理界面手动执行 `worker/schema.sql` 中的建表语句）。
+      ![image](https://cdn.jsdelivr.net/gh/Zgrowth/image@master/document/image.7pwxgufny.webp)
+      ![image](https://cdn.jsdelivr.net/gh/Zgrowth/image@master/document/image.7w7fzdvvn6.webp)
+      ![image](https://cdn.jsdelivr.net/gh/Zgrowth/image@master/document/image.92qr7zlt4x.webp)
+
+4.  **创建 Workers 应用**
+    - 在左侧导航栏选择 **计算** > **Workers 和 Pages**。
+    - 点击 **创建应用程序**，选择 **with GitHub**。
+
+5.  **选择仓库**
+    - 选择 **GitHub**，登录并授权。
+    - 从列表中找到并选择你的 Fork 仓库（例如：`<你的用户名>/harmony-ledger-workers`）。
+    - 确认 **Branch** 为 `master`（或你的主分支）。
+    - 后续直接点击部署
+    ![image](https://cdn.jsdelivr.net/gh/Zgrowth/image@master/document/image.8dxhnz0ew5.webp)
+
+6.  **绑定B1数据库**
+    - 部署构建完成后在绑定里面添加D1数据库绑定
+    ![image](https://cdn.jsdelivr.net/gh/Zgrowth/image@master/document/image.41yogfj8tu.webp)
+    - 添加自定义域名
+    ![image](https://cdn.jsdelivr.net/gh/Zgrowth/image@master/document/image.6po4qsfja2.webp)
+
+
+
 ## 🔧 配置
 
 ### wrangler.jsonc
