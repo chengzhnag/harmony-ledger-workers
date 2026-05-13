@@ -56,6 +56,7 @@
     "eslint-plugin-import": "^2.32.0",
     "framer-motion": "^12.23.0",
     "hono": "^4.9.8",
+    "html-to-image": "^1.11.13",
     "i18next": "^25.8.18",
     "i18next-browser-languagedetector": "^8.2.1",
     "immer": "^10.1.1",

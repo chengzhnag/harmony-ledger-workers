@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/use-auth';
@@ -10,10 +10,12 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { zhCN, enUS } from 'date-fns/locale';
-import { ArrowUpRight, ArrowDownRight, BookOpen, CalendarDays } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, BookOpen, CalendarDays, Download, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { EVENT_TYPES } from '@/constants';
 import { Link } from 'react-router-dom';
+import { exportTimelineAsImage } from '@/lib/timeline-export';
+import { toast } from 'sonner';
 
 interface TimelineRecord {
   id: string;
@@ -43,6 +45,8 @@ export function TimelinePage() {
   const familyId = user?.activeFamilyId;
   const currentLocale = i18n.language === 'zh' ? zhCN : enUS;
   const observerTarget = useRef<HTMLDivElement>(null);
+  const exportContainerRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const {
     data: pageData,
@@ -66,6 +70,35 @@ export function TimelinePage() {
     if (!pageData?.pages) return [];
     return pageData.pages.flatMap((page) => page.records ?? []);
   }, [pageData]);
+
+  // 处理导出为图片
+  const handleExportImage = async () => {
+    if (!exportContainerRef.current) return;
+    
+    setIsExporting(true);
+    try {
+      // 先加载所有数据
+      let shouldFetchMore = hasNextPage;
+      while (shouldFetchMore) {
+        // 调用 fetchNextPage 并等待其完成
+        const result = await fetchNextPage();
+        // 检查是否还有下一页
+        shouldFetchMore = result.hasNextPage ?? false;
+      }
+      
+      // 等待一小段时间确保 DOM 更新
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 所有数据加载完成后导出
+      await exportTimelineAsImage('main');
+      toast.success(t('timeline.exportSuccess'));
+    } catch (error) {
+      toast.error(t('timeline.exportFailed'));
+      console.error('Export failed:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // 按日期分组
   const groupedRecords = React.useMemo(() => {
@@ -98,47 +131,73 @@ export function TimelinePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="py-8 md:py-10 lg:py-12 space-y-8">
-        <header>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('timeline.title')}</h1>
-          <p className="text-sm text-slate-500 font-medium mt-1">{t('timeline.subtitle')}</p>
+      <div className="pt-8 md:pt-10 lg:pt-12 space-y-8">
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">{t('timeline.title')}</h1>
+            <p className="text-sm text-slate-500 font-medium mt-1">{t('timeline.subtitle')}</p>
+          </div>
+          {allRecords.length > 0 && (
+            <Button
+              onClick={handleExportImage}
+              disabled={isExporting || isLoading}
+              variant="outline"
+              size="sm"
+              id='timeline-export-image-button'
+              className="flex items-center gap-2 whitespace-nowrap"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t('timeline.exporting')}
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4" />
+                  {t('timeline.exportImage')}
+                </>
+              )}
+            </Button>
+          )}
         </header>
 
-        {isLoading ? (
-          <div className="space-y-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i}>
-                <Skeleton className="h-5 w-24 rounded-lg mb-3" />
-                {[1, 2].map((j) => (
-                  <Skeleton key={j} className="h-20 w-full rounded-2xl mb-3" />
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : allRecords.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center">
-            <BookOpen className="h-10 w-10 text-slate-200 mb-3" />
-            <p className="text-slate-400 font-medium">{t('timeline.noRecords')}</p>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {groupedRecords.map(([dateKey, records]) => (
-              <div key={dateKey}>
-                <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-50/80 to-transparent backdrop-blur-sm py-2 mb-3">
-                  <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-600 bg-white px-3 py-1 rounded-full shadow-sm">
-                    <CalendarDays className="h-3.5 w-3.5 text-rose-400" />
-                    {format(new Date(dateKey), 'yyyy-MM-dd', { locale: currentLocale })}
-                  </span>
-                </div>
-                <div className="space-y-3">
-                  {records.map((record) => (
-                    <TimelineCard key={record.id} record={record} locale={i18n.language} />
+        <div id="timeline-export-container" ref={exportContainerRef}>
+          {isLoading ? (
+            <div className="space-y-6">
+              {[1, 2, 3].map((i) => (
+                <div key={i}>
+                  <Skeleton className="h-5 w-24 rounded-lg mb-3" />
+                  {[1, 2].map((j) => (
+                    <Skeleton key={j} className="h-20 w-full rounded-2xl mb-3" />
                   ))}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          ) : allRecords.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-[32px] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center">
+              <BookOpen className="h-10 w-10 text-slate-200 mb-3" />
+              <p className="text-slate-400 font-medium">{t('timeline.noRecords')}</p>
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {groupedRecords.map(([dateKey, records]) => (
+                <div key={dateKey}>
+                  <div className="sticky top-0 z-10 bg-gradient-to-r from-slate-50/80 to-transparent backdrop-blur-sm py-2 mb-3">
+                    <span className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-600 bg-white px-3 py-1 rounded-full shadow-sm">
+                      <CalendarDays className="h-3.5 w-3.5 text-rose-400" />
+                      {format(new Date(dateKey), 'yyyy-MM-dd', { locale: currentLocale })}
+                    </span>
+                  </div>
+                  <div className="space-y-3">
+                    {records.map((record) => (
+                      <TimelineCard key={record.id} record={record} locale={i18n.language} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {isFetchingNextPage && (
           <div className="flex justify-center pt-4">
@@ -203,7 +262,7 @@ function TimelineCard({ record, locale }: { record: TimelineRecord; locale: stri
               <div className="min-w-0 flex-1">
                 <h3 className="font-bold text-slate-800">{record.personName}</h3>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 whitespace-nowrap">
                     {t(EVENT_TYPES.find((et) => et.value === record.eventType)?.label || record.eventType)}
                   </span>
                   {record.description && (
@@ -224,7 +283,7 @@ function TimelineCard({ record, locale }: { record: TimelineRecord; locale: stri
               )}
               <span
                 className={cn(
-                  "text-lg font-bold",
+                  "text-lg font-bold whitespace-nowrap",
                   record.type === 'receive' ? "text-emerald-600" : "text-rose-600"
                 )}
               >
