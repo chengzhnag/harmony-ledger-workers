@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { ChevronLeft, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, FileText, Edit2, MoreVertical } from 'lucide-react';
+import { ChevronLeft, Plus, ArrowUpRight, ArrowDownRight, Trash2, Calendar, FileText, Edit2, MoreVertical, Download } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/hooks/use-auth';
 import type { Ledger, RenqingRecord } from '@shared/types';
@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AddRecordSheet } from '@/components/AddRecordSheet';
 import { RecordDetailDialog } from '@/components/RecordDetailDialog';
+import { LedgerExportDialog } from '@/components/LedgerExportDialog';
 import { format } from 'date-fns';
 import { zhCN, enUS } from 'date-fns/locale';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +22,7 @@ import { motion } from 'framer-motion';
 import { EVENT_TYPES } from '@/constants';
 import { useEffect, useRef } from 'react';
 import type { PaginatedResponse } from '@shared/types';
+import { exportLedgerAsSingleImage, exportLedgerAsImageZip, exportLedgerAsPDF } from '@/lib/ledger-export';
 export function LedgerDetailPage() {
   const { ledgerId } = useParams<{ ledgerId: string }>();
   const { t, i18n } = useTranslation();
@@ -31,6 +33,8 @@ export function LedgerDetailPage() {
   const [editingRecord, setEditingRecord] = React.useState<RenqingRecord | undefined>(undefined);
   const [recordToDelete, setRecordToDelete] = React.useState<string | null>(null);
   const [selectedRecord, setSelectedRecord] = React.useState<RenqingRecord | null>(null);
+  const [isExportOpen, setIsExportOpen] = React.useState(false);
+  const [isExporting, setIsExporting] = React.useState(false);
   const observerTarget = useRef<HTMLDivElement>(null);
   const familyId = user?.activeFamilyId;
   const currentLocale = i18n.language === 'zh' ? zhCN : enUS;
@@ -74,6 +78,34 @@ export function LedgerDetailPage() {
   const handleEdit = (record: RenqingRecord) => {
     setEditingRecord(record);
     setIsAddOpen(true);
+  };
+
+  // 处理导出
+  const handleExport = async (type: 'single-image' | 'image-zip' | 'pdf') => {
+    if (!ledger || !records) return;
+
+    setIsExporting(true);
+    try {
+      switch (type) {
+        case 'single-image':
+          await exportLedgerAsSingleImage(ledger, records);
+          toast.success(t('ledgerExport.successSingle'));
+          break;
+        case 'image-zip':
+          await exportLedgerAsImageZip(ledger, records);
+          toast.success(t('ledgerExport.successZip'));
+          break;
+        case 'pdf':
+          await exportLedgerAsPDF(ledger, records);
+          toast.success(t('ledgerExport.successPDF'));
+          break;
+      }
+    } catch (error) {
+      console.error('导出失败:', error);
+      toast.error(t('ledgerExport.failed'));
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // 无限滚动逻辑
@@ -136,6 +168,18 @@ export function LedgerDetailPage() {
               {ledger ? format(ledger.date, 'yyyy-MM-dd', { locale: currentLocale }) : <Skeleton className="h-3 w-24" />}
             </div>
           </div>
+          <motion.div whileTap={{ scale: 0.9 }}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors"
+              onClick={() => setIsExportOpen(true)}
+              disabled={!ledger || recordsLoading}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {t('ledgerDetail.exportLedger')}
+            </Button>
+          </motion.div>
         </header>
         <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="border-none shadow-soft rounded-[24px] bg-emerald-50/40 overflow-hidden relative border border-emerald-100/30">
@@ -294,6 +338,12 @@ export function LedgerDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <LedgerExportDialog
+        open={isExportOpen}
+        onOpenChange={setIsExportOpen}
+        onExport={handleExport}
+        isExporting={isExporting}
+      />
     </div>
   );
 }
