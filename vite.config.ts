@@ -45,7 +45,7 @@ const customLogger = {
   hasErrorLogged: () => false,
 
   // Keep these as-is
-  clearScreen: () => {},
+  clearScreen: () => { },
   hasWarned: false,
 };
 
@@ -109,9 +109,81 @@ export default ({ mode }: { mode: string }) => {
     build: {
       minify: true,
       sourcemap: false,
+      // 启用 CSS 代码拆分（默认 true，确保保留）
+      cssCodeSplit: true,
+      // 提高 chunk 警告阈值（默认 500kb，此处设为 1MB）
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
           sourcemapExcludeSources: false, // Include original source in source maps
+          // 关键：手动拆分第三方库
+          manualChunks(id) {
+            // === 按您指定的分组结构实现 ===
+            const chunkGroups = {
+              // --- 核心框架层 ---
+              'vendor-core': [
+                'react',
+                'react-dom',
+                'react-router-dom'
+              ],
+
+              // --- 状态管理与工具 ---
+              'vendor-utils': [
+                'zustand',
+                'immer',
+                '@tanstack/react-query',
+                'clsx',
+                'tailwind-merge',
+                'class-variance-authority',
+                'date-fns',
+                'uuid',
+                'zod',
+                'react-hook-form',
+                '@hookform/resolvers'
+              ],
+
+              // --- UI 基础组件 ---
+              'vendor-ui': [
+                '@radix-ui/react-',
+                '@headlessui/react',
+                'lucide-react',
+                'cmdk',
+                'vaul',
+                'sonner'
+              ],
+
+              // --- 动画与交互 ---
+              'vendor-motion': [
+                'framer-motion',
+                '@dnd-kit/core',
+                '@dnd-kit/sortable',
+                'react-swipeable',
+                'react-resizable-panels',
+                'embla-carousel-react'
+              ],
+
+              // --- 大型工具库（独立拆分）---
+              'vendor-large': [
+                'xlsx',
+                'jszip',
+                'jspdf',
+                'html-to-image',
+                'qrcode'
+              ]
+            }
+
+            // 匹配逻辑：检查 id 是否包含分组关键字
+            for (const [chunk, dependencies] of Object.entries(chunkGroups)) {
+              if (dependencies.some(dep => id.includes(dep))) {
+                return chunk
+              }
+            }
+
+            // 默认归入 vendor（其他 node_modules）
+            if (id.includes('node_modules')) {
+              return 'vendor'
+            }
+          }
         },
       },
     },
