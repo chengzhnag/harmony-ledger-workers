@@ -12,7 +12,7 @@ export function createApiError(message: string, errorCode?: string): ApiError {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const fullPath = path.startsWith('https://') ? path : `https://ledge.952737.xyz${path}`;
+  const fullPath = path.startsWith('https://') ? path : `${import.meta.env.VITE_API_URL}${path}`;
 
   // 从 localStorage 获取 token
   const stored = localStorage.getItem('harmony_user');
