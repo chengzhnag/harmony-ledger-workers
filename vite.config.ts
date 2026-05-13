@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import { exec } from "node:child_process";
 import pino from "pino";
 import { cloudflare } from "@cloudflare/vite-plugin";
+import { visualizer } from 'rollup-plugin-visualizer'
 
 const logger = pino();
 
@@ -105,7 +106,18 @@ function reloadTriggerPlugin() {
 export default ({ mode }: { mode: string }) => {
   const env = loadEnv(mode, process.cwd());
   return defineConfig({
-    plugins: [react(), cloudflare(), watchDependenciesPlugin(), reloadTriggerPlugin()],
+    plugins: [
+      react(),
+      cloudflare(),
+      watchDependenciesPlugin(),
+      reloadTriggerPlugin(),
+      visualizer({
+        open: false,          // 构建后自动打开报告
+        gzipSize: true,      // **显示 gzip 压缩后体积**（关键指标）
+        brotliSize: true,    // 显示 brotli 压缩后体积
+        filename: 'bundle-stats.html' // 自定义报告名
+      }),
+    ],
     build: {
       minify: true,
       sourcemap: false,
@@ -166,10 +178,24 @@ export default ({ mode }: { mode: string }) => {
               'vendor-large': [
                 'xlsx',
                 'jszip',
-                'jspdf',
                 'html-to-image',
                 'qrcode'
-              ]
+              ],
+              'vendor-html2canvas': [
+                'html2canvas'
+              ],
+              'vendor-jspdf': [
+                'jspdf',
+              ],
+              'vendor-canvg': [
+                'canvg'
+              ],
+              'vendor-lodash': [
+                'lodash'
+              ],
+              'vendor-recharts': [
+                'recharts'
+              ],
             }
 
             // 匹配逻辑：检查 id 是否包含分组关键字
