@@ -56,7 +56,7 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       activeFamilyId: user.activeFamilyId,
       familyIds: user.familyIds,
       iat: now,
-      exp: now + 2 * 60 * 60, // 7天后过期
+      exp: now + 7 * 24 * 60 * 60, // 7天后过期
     }, secret);
   }
 

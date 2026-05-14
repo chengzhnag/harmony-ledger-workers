@@ -132,12 +132,6 @@ export default ({ mode }: { mode: string }) => {
           manualChunks(id) {
             // === 按您指定的分组结构实现 ===
             const chunkGroups = {
-              // --- 核心框架层 ---
-              'vendor-core': [
-                'react',
-                'react-dom',
-                'react-router-dom'
-              ],
 
               // --- 状态管理与工具 ---
               'vendor-utils': [
