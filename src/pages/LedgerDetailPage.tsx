@@ -82,21 +82,36 @@ export function LedgerDetailPage() {
 
   // 处理导出
   const handleExport = async (type: 'single-image' | 'image-zip' | 'pdf') => {
-    if (!ledger || !records) return;
+    if (!ledger) return;
 
     setIsExporting(true);
+
+    // 先加载所有数据并收集最终完整记录
+    let shouldFetchMore = hasNextPage;
+    let allPages = recordData?.pages ?? [];
+
+    while (shouldFetchMore) {
+      const result = await fetchNextPage();
+      if (result.data?.pages) {
+        allPages = result.data.pages;
+      }
+      shouldFetchMore = result.hasNextPage ?? false;
+    }
+
+    const allRecords = allPages.flatMap(page => Array.isArray(page) ? page : page.records);
+
     try {
       switch (type) {
         case 'single-image':
-          await exportLedgerAsSingleImage(ledger, records);
+          await exportLedgerAsSingleImage(ledger, allRecords);
           toast.success(t('ledgerExport.successSingle'));
           break;
         case 'image-zip':
-          await exportLedgerAsImageZip(ledger, records);
+          await exportLedgerAsImageZip(ledger, allRecords);
           toast.success(t('ledgerExport.successZip'));
           break;
         case 'pdf':
-          await exportLedgerAsPDF(ledger, records);
+          await exportLedgerAsPDF(ledger, allRecords);
           toast.success(t('ledgerExport.successPDF'));
           break;
       }
