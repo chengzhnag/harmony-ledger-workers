@@ -114,7 +114,7 @@ export function AddRecordSheet({ open, onOpenChange, pinnedLedgerId, recordToEdi
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-[32px] px-6 pb-10 pt-4 max-w-lg mx-auto border-none h-[90vh] overflow-y-auto outline-none">
-        <div className="mx-auto h-1.5 w-12 rounded-full bg-slate-200 mb-6" />
+        {/* <div className="mx-auto h-1.5 w-12 rounded-full bg-slate-200 mb-6" /> */}
         <SheetHeader>
           <SheetTitle className="text-center text-xl font-bold">
             {recordToEdit ? t('form.editTitle') : t('form.title')}

@@ -56,14 +56,14 @@ export function EditLedgerSheet({ ledger, open, onOpenChange }: EditLedgerSheetP
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-[32px] px-6 pb-10 pt-4 max-w-lg mx-auto border-none">
-        <div className="mx-auto h-1.5 w-12 rounded-full bg-slate-200 mb-6" />
+        {/* <div className="mx-auto h-1.5 w-12 rounded-full bg-slate-200 mb-6" /> */}
         <SheetHeader>
           <SheetTitle className="text-center text-xl font-bold">{t('common.edit')}</SheetTitle>
         </SheetHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-6">
           <div className="space-y-2">
             <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('ledgerForm.name')}</Label>
-            <Input {...form.register("title")} className="bg-slate-50 border-none rounded-xl h-12" />
+            <Input {...form.register("title")} placeholder={t('ledgerForm.namePlaceholder')} className="bg-slate-50 border-none rounded-xl h-12" />
             {form.formState.errors.title && <p className="text-xs text-rose-500">{form.formState.errors.title.message}</p>}
           </div>
           <div className="space-y-2">
@@ -72,7 +72,7 @@ export function EditLedgerSheet({ ledger, open, onOpenChange }: EditLedgerSheetP
           </div>
           <div className="space-y-2">
             <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t('ledgerForm.note')}</Label>
-            <Input {...form.register("description")} className="bg-slate-50 border-none rounded-xl h-12" />
+            <Input {...form.register("description")} placeholder={t('ledgerForm.notePlaceholder')} className="bg-slate-50 border-none rounded-xl h-12" />
           </div>
           <Button
             type="submit"
