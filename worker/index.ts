@@ -7,6 +7,7 @@ import { Env, ok, bad } from './d1-utils';
 
 // ✅ 1. 静态导入用户路由
 import { userRoutes } from './user-routes';
+import { aiRoutes } from './ai-routes';
 
 export * from './d1-utils';
 
@@ -102,6 +103,9 @@ app.post('/api/client-errors', async (c) => {
 // ✅ 2. 在应用启动时直接注册用户路由
 // @ts-ignore
 userRoutes(app);
+// ✅ 3. 注册 AI 语音指令路由
+// @ts-ignore
+aiRoutes(app);
 
 app.notFound((c) => c.json({ success: false, error: 'Not Found' }, 404));
 app.onError((err, c) => { console.error(`[ERROR] ${err}`); return c.json({ success: false, error: 'Internal Server Error' }, 500); });

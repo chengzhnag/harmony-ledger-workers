@@ -6,6 +6,7 @@ import { ApiResponse } from "@shared/types";
  */
 export interface Env {
   DB: D1Database;
+  AI: Ai;
   JWT_SECRET: string;
 }
 

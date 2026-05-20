@@ -20,6 +20,9 @@
   "vars": {
     "JWT_SECRET": "harmony-ledger-workers-secret-1357924680",
   },
+  "ai": {
+    "binding": "AI"
+  },
   // "d1_databases": [
   //   {
   //     "binding": "DB",
