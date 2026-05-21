@@ -129,28 +129,54 @@ const extractTextFromAiResponse = (response: unknown): string => {
 
 /**
  * 将自然语言指令交给 Qwen 模型解析为 CRUD 动作。
- * 仅允许 contacts / ledgers / records 三个表。
+ * 支持 7 个操作：
+ *   contacts: create, update, delete
+ *   ledgers: create, update, delete
+ *   records: create
  */
 const parseCrudActions = async (ai: Ai, instruction: string): Promise<CrudAction[]> => {
-  const systemPrompt = `你是一个严格的解析器。请将用户自然语言指令转成一个仅包含 CRUD 操作的 JSON 数组。
-只允许操作这三个表：contacts、ledgers、records。
-只允许使用这三种操作：create、update、delete。
-只能输出合法的 JSON 数组文本，不要附带任何额外说明。
-动作格式如下：
+  const systemPrompt = `你是一个严格的解析器。将用户自然语言指令转成 JSON 数组，仅支持以下操作：
+
+【支持的操作】
+1. contacts create: 新增联系人
+2. contacts update: 编辑联系人（通过 name 标识现有联系人）
+3. contacts delete: 删除联系人（通过 name 标识）
+4. ledgers create: 新增账本
+5. ledgers update: 编辑账本（通过 title 标识现有账本）
+6. ledgers delete: 删除账本（通过 title 标识）
+7. records create: 新增记录（可指定账本标题或创建不关联账本的记录）
+
+【输出格式】
+只输出合法的 JSON 数组，不要附带任何额外说明。格式如下：
 [
   {
     "table": "contacts" | "ledgers" | "records",
     "operation": "create" | "update" | "delete",
-    "id": "...",          // update/delete 必需
-    "data": { ... }        // create 必需，update 可选
+    "data": { ... }
   }
 ]
-允许字段：
-- contacts: familyId, name, remarks
-- ledgers: familyId, title, date, description
-- records: familyId, ledgerId, contactId, contactName, ledgerTitle, type, amount, personName, eventType, description, timestamp
-如果指令中提到已存在的联系人或账本名称，可以使用 contactName 或 ledgerTitle 来匹配。
-如果无法映射到这三个表或这些操作，输出一个空数组。
+
+【字段规范】
+contacts create: { name, remarks? }
+contacts update: { name, newName?, remarks? }（name 用来匹配要编辑的联系人，newName 用来更新联系人名称）
+contacts delete: { name }（name 用来匹配要删除的联系人）
+
+ledgers create: { title, date?, description? }
+ledgers update: { title, newTitle?, date?, description? }（title 用来匹配要编辑的账本，newTitle 用来更新账本标题，支持编辑 date 和 description）
+ledgers delete: { title }（title 用来匹配要删除的账本）
+
+records create: { type, amount, personName, eventType, ledgerTitle?, description?, timestamp? }
+- type: "give" 或 "receive"
+- amount: 数字
+- personName: 人名
+- eventType: 类别（如 "wedding", "birthday" 等）
+- ledgerTitle: 可选，指定账本标题；不提供则创建不关联账本的记录
+- timestamp: 可选，日期字符串或时间戳
+
+【重点】
+- 不要生成 id 字段，后端会自动处理名称匹配
+- 不支持 records update/delete，也不支持其他表操作
+- 如果无法映射，输出空数组 []
 `;
 
   const response = await ai.run('@cf/qwen/qwen3-30b-a3b-fp8', {
@@ -200,8 +226,14 @@ const parseCrudActions = async (ai: Ai, instruction: string): Promise<CrudAction
     const table = normalizeString(rawAction.table)?.toLowerCase();
     const operation = normalizeString(rawAction.operation)?.toLowerCase();
     if (!table || !operation) continue;
-    if (!['contacts', 'ledgers', 'records'].includes(table)) continue;
-    if (!['create', 'update', 'delete'].includes(operation)) continue;
+
+    // 只允许这 7 个操作
+    const isValid =
+      (table === 'contacts' && ['create', 'update', 'delete'].includes(operation)) ||
+      (table === 'ledgers' && ['create', 'update', 'delete'].includes(operation)) ||
+      (table === 'records' && operation === 'create');
+
+    if (!isValid) continue;
 
     const dataSource = rawAction.data && typeof rawAction.data === 'object' ? rawAction.data : rawAction;
     const data: Record<string, unknown> = {};
@@ -223,28 +255,46 @@ const parseCrudActions = async (ai: Ai, instruction: string): Promise<CrudAction
     };
 
     if (table === 'contacts') {
-      safeString('familyId');
-      safeString('name');
-      safeString('remarks');
+      if (operation === 'create') {
+        safeString('name');
+        safeString('remarks');
+      } else if (operation === 'update') {
+        // 必须有 name 来标识要更新的联系人，newName 用于更新名称
+        safeString('name');
+        safeString('newName');
+        safeString('remarks');
+      } else if (operation === 'delete') {
+        // 必须有 name 来标识要删除的联系人
+        safeString('name');
+      }
     }
+
     if (table === 'ledgers') {
-      safeString('familyId');
-      safeString('title');
-      const dateValue = normalizeDateValue(dataSource.date ?? dataSource.createdAt ?? dataSource.time);
-      if (dateValue !== undefined) setField('date', dateValue);
-      safeString('description');
+      if (operation === 'create') {
+        safeString('title');
+        const dateValue = normalizeDateValue(dataSource.date ?? dataSource.createdAt ?? dataSource.time);
+        if (dateValue !== undefined) setField('date', dateValue);
+        safeString('description');
+      } else if (operation === 'update') {
+        // 必须有 title 来标识要更新的账本，newTitle 用于更新账本标题
+        safeString('title');
+        safeString('newTitle');
+        const dateValue = normalizeDateValue(dataSource.date ?? dataSource.createdAt ?? dataSource.time);
+        if (dateValue !== undefined) setField('date', dateValue);
+        safeString('description');
+      } else if (operation === 'delete') {
+        // 必须有 title 来标识要删除的账本
+        safeString('title');
+      }
     }
-    if (table === 'records') {
-      safeString('familyId');
-      safeString('ledgerId');
-      safeString('contactId');
-      safeString('contactName');
-      safeString('ledgerTitle');
+
+    if (table === 'records' && operation === 'create') {
       const type = normalizeType(dataSource.type ?? dataSource.recordType ?? dataSource.action);
       if (type) setField('type', type);
       safeNumber('amount');
       safeString('personName');
       safeString('eventType');
+      safeString('ledgerTitle'); // 可选，不提供则创建不关联账本的记录
       safeString('description');
       const timestampValue = normalizeDateValue(dataSource.timestamp ?? dataSource.date ?? dataSource.time);
       if (timestampValue !== undefined) setField('timestamp', timestampValue);
@@ -253,7 +303,6 @@ const parseCrudActions = async (ai: Ai, instruction: string): Promise<CrudAction
     normalizedActions.push({
       table: table as SupportedTable,
       operation: operation as SupportedCrudOp,
-      id: rawAction.id !== undefined ? String(rawAction.id) : undefined,
       data,
     });
   }
@@ -270,6 +319,14 @@ const resolveContactIdByName = async (c: any, familyId: string, name: string): P
 };
 
 /**
+ * 根据家庭 ID 与联系人名称查找所有匹配的联系人。
+ */
+const resolveContactCandidatesByName = async (c: any, familyId: string, name: string) => {
+  const rows = await c.env.DB.prepare('SELECT id, name, remarks FROM contacts WHERE family_id = ? AND name = ?').bind(familyId, name).all() as any;
+  return rows.results || [];
+};
+
+/**
  * 根据家庭 ID 与账本标题查找账本 ID。
  */
 const resolveLedgerIdByTitle = async (c: any, familyId: string, title: string): Promise<string | null> => {
@@ -278,35 +335,28 @@ const resolveLedgerIdByTitle = async (c: any, familyId: string, title: string): 
 };
 
 /**
- * 执行单个 CRUD 动作，支持 contacts / ledgers / records。
+ * 根据家庭 ID 与账本标题查找所有匹配的账本。
+ */
+const resolveLedgerCandidatesByTitle = async (c: any, familyId: string, title: string) => {
+  const rows = await c.env.DB.prepare('SELECT id, title, date, description FROM ledgers WHERE family_id = ? AND title = ?').bind(familyId, title).all() as any;
+  return rows.results || [];
+};
+
+/**
+ * 执行单个 CRUD 动作，仅支持 7 个操作：
+ * - contacts: create, update, delete
+ * - ledgers: create, update, delete
+ * - records: create
  */
 const executeCrudAction = async (c: any, action: CrudAction, familyId: string) => {
   const table = action.table;
   const op = action.operation;
   const data = { ...action.data };
-  if (op === 'create') {
-    data.familyId = familyId;
-  }
-
-  const ensureIdForUpdateDelete = async () => {
-    if (action.id) return action.id;
-    if (table === 'contacts' && typeof data.name === 'string') {
-      const id = await resolveContactIdByName(c, familyId, data.name);
-      if (!id) throw new Error('Unable to resolve contact id by name');
-      return id;
-    }
-    if (table === 'ledgers' && typeof data.title === 'string') {
-      const id = await resolveLedgerIdByTitle(c, familyId, data.title);
-      if (!id) throw new Error('Unable to resolve ledger id by title');
-      return id;
-    }
-    throw new Error('Missing id for update/delete action');
-  };
 
   if (table === 'contacts') {
     if (op === 'create') {
       const name = typeof data.name === 'string' ? data.name : undefined;
-      if (!name) throw new Error('Contact name is required');
+      if (!name) throw new Error('Contact name is required for create');
       const id = crypto.randomUUID();
       await ContactEntity.create(c.env.DB, {
         id,
@@ -317,18 +367,29 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
       } as any);
       return { id, table, operation: op };
     }
+
     if (op === 'update') {
-      const id = await ensureIdForUpdateDelete();
-      const contact = await ContactEntity.getById(c.env.DB, id);
-      if (!contact || contact.familyId !== familyId) throw new Error('Contact not found or family mismatch');
+      const name = typeof data.name === 'string' ? data.name : undefined;
+      if (!name) throw new Error('Contact name is required to identify which contact to update');
+      // 通过 name 查询联系人 ID
+      const id = await resolveContactIdByName(c, familyId, name);
+      if (!id) throw new Error(`Contact with name "${name}" not found`);
+
+      const newName = typeof data.newName === 'string' ? data.newName : undefined;
       await ContactEntity.update(c.env.DB, id, {
-        name: typeof data.name === 'string' ? data.name : undefined,
-        remarks: data.remarks !== undefined ? String(data.remarks) : undefined,
+        name: newName ?? name,
+        remarks: typeof data.remarks === 'string' ? data.remarks : undefined,
       });
       return { id, table, operation: op };
     }
+
     if (op === 'delete') {
-      const id = await ensureIdForUpdateDelete();
+      const name = typeof data.name === 'string' ? data.name : undefined;
+      if (!name) throw new Error('Contact name is required to identify which contact to delete');
+      // 通过 name 查询联系人 ID
+      const id = await resolveContactIdByName(c, familyId, name);
+      if (!id) throw new Error(`Contact with name "${name}" not found`);
+      
       const contact = await ContactEntity.getById(c.env.DB, id);
       if (!contact || contact.familyId !== familyId) throw new Error('Contact not found or family mismatch');
       await ContactEntity.delete(c.env.DB, id);
@@ -339,7 +400,7 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
   if (table === 'ledgers') {
     if (op === 'create') {
       const title = typeof data.title === 'string' ? data.title : undefined;
-      if (!title) throw new Error('Ledger title is required');
+      if (!title) throw new Error('Ledger title is required for create');
       const id = crypto.randomUUID();
       await LedgerEntity.create(c.env.DB, {
         id,
@@ -353,19 +414,30 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
       } as any);
       return { id, table, operation: op };
     }
+
     if (op === 'update') {
-      const id = await ensureIdForUpdateDelete();
-      const row = await c.env.DB.prepare('SELECT family_id FROM ledgers WHERE id = ?').bind(id).first() as any;
-      if (!row || row.family_id !== familyId) throw new Error('Ledger not found or family mismatch');
+      const title = typeof data.title === 'string' ? data.title : undefined;
+      if (!title) throw new Error('Ledger title is required to identify which ledger to update');
+      // 通过 title 查询账本 ID
+      const id = await resolveLedgerIdByTitle(c, familyId, title);
+      if (!id) throw new Error(`Ledger with title "${title}" not found`);
+
+      const newTitle = typeof data.newTitle === 'string' ? data.newTitle : undefined;
       await LedgerEntity.update(c.env.DB, id, {
-        title: typeof data.title === 'string' ? data.title : undefined,
+        title: newTitle ?? title,
         date: normalizeDateValue(data.date),
         description: typeof data.description === 'string' ? data.description : undefined,
       });
       return { id, table, operation: op };
     }
+
     if (op === 'delete') {
-      const id = await ensureIdForUpdateDelete();
+      const title = typeof data.title === 'string' ? data.title : undefined;
+      if (!title) throw new Error('Ledger title is required to identify which ledger to delete');
+      // 通过 title 查询账本 ID
+      const id = await resolveLedgerIdByTitle(c, familyId, title);
+      if (!id) throw new Error(`Ledger with title "${title}" not found`);
+
       const row = await c.env.DB.prepare('SELECT family_id FROM ledgers WHERE id = ?').bind(id).first() as any;
       if (!row || row.family_id !== familyId) throw new Error('Ledger not found or family mismatch');
       await c.env.DB.batch([
@@ -383,18 +455,22 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
       const personName = typeof data.personName === 'string' ? data.personName : undefined;
       const eventType = typeof data.eventType === 'string' ? data.eventType : undefined;
       if (!type || amount === undefined || !personName || !eventType) {
-        throw new Error('Record create requires type, amount, personName and eventType');
+        throw new Error('Record create requires: type, amount, personName, eventType');
       }
-      const ledgerId = typeof data.ledgerId === 'string' ? data.ledgerId : undefined;
-      const contactId = typeof data.contactId === 'string'
-        ? data.contactId
-        : (typeof data.contactName === 'string' ? await resolveContactIdByName(c, familyId, data.contactName) : undefined);
+
+      // ledgerTitle 是可选的；如果提供，需要查询对应的 ledger_id
+      let ledgerId: string | null = null;
+      if (typeof data.ledgerTitle === 'string') {
+        ledgerId = await resolveLedgerIdByTitle(c, familyId, data.ledgerTitle);
+        if (!ledgerId) throw new Error(`Ledger with title "${data.ledgerTitle}" not found`);
+      }
+
       const id = crypto.randomUUID();
       await RecordEntity.create(c.env.DB, {
         id,
         familyId,
-        ledgerId: ledgerId || null,
-        contactId: contactId || null,
+        ledgerId,
+        contactId: null, // records create 不支持通过 contactName 创建
         type,
         amount,
         personName,
@@ -403,38 +479,13 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
         timestamp: normalizeDateValue(data.timestamp) ?? Date.now(),
         updatedAt: Date.now(),
       } as any);
+
       if (ledgerId) await recalculateLedgerTotals(c.env.DB, ledgerId);
       return { id, table, operation: op };
     }
-    if (op === 'update') {
-      const id = action.id ?? await ensureIdForUpdateDelete();
-      const existing = await RecordEntity.get(c.env.DB, id);
-      if (!existing || existing.familyId !== familyId) throw new Error('Record not found or family mismatch');
-      const ledgerId = typeof data.ledgerId === 'string' ? data.ledgerId : existing.ledgerId;
-      const contactId = typeof data.contactId === 'string'
-        ? data.contactId
-        : (typeof data.contactName === 'string' ? await resolveContactIdByName(c, familyId, data.contactName) : existing.contactId);
-      await RecordEntity.update(c.env.DB, id, {
-        type: normalizeType(data.type) ?? existing.type,
-        amount: normalizeNumber(data.amount) ?? existing.amount,
-        personName: typeof data.personName === 'string' ? data.personName : existing.personName,
-        eventType: typeof data.eventType === 'string' ? data.eventType : existing.eventType,
-        description: data.description !== undefined ? String(data.description) : existing.description,
-        ledgerId,
-        contactId: contactId ?? undefined,
-      });
-      if (existing.ledgerId) await recalculateLedgerTotals(c.env.DB, existing.ledgerId);
-      if (ledgerId && ledgerId !== existing.ledgerId) await recalculateLedgerTotals(c.env.DB, ledgerId);
-      return { id, table, operation: op };
-    }
-    if (op === 'delete') {
-      const id = action.id ?? await ensureIdForUpdateDelete();
-      const existing = await RecordEntity.get(c.env.DB, id);
-      if (!existing || existing.familyId !== familyId) throw new Error('Record not found or family mismatch');
-      await RecordEntity.delete(c.env.DB, id);
-      if (existing.ledgerId) await recalculateLedgerTotals(c.env.DB, existing.ledgerId);
-      return { id, table, operation: op };
-    }
+
+    // records 不支持 update/delete
+    throw new Error(`Operation "${op}" is not supported for records`);
   }
 
   throw new Error('Unsupported action');
@@ -533,6 +584,42 @@ export function aiRoutes(app: Hono<{ Bindings: Env }>) {
       const results: any[] = [];
       for (const action of actions) {
         try {
+          // 对于名字或标题匹配的 update/delete 操作，先检查是否存在多条匹配结果
+          if ((action.table === 'contacts' || action.table === 'ledgers') && (action.operation === 'update' || action.operation === 'delete') && !action.id) {
+            if (action.table === 'contacts' && typeof action.data.name === 'string') {
+              const candidates = await resolveContactCandidatesByName(c, familyId, action.data.name);
+              if (candidates.length === 0) {
+                throw new Error(`Contact with name "${action.data.name}" not found`);
+              }
+              if (candidates.length > 1) {
+                results.push({
+                  action,
+                  success: false,
+                  ambiguous: true,
+                  candidates,
+                });
+                continue;
+              }
+              action.id = candidates[0].id;
+            }
+            if (action.table === 'ledgers' && typeof action.data.title === 'string') {
+              const candidates = await resolveLedgerCandidatesByTitle(c, familyId, action.data.title);
+              if (candidates.length === 0) {
+                throw new Error(`Ledger with title "${action.data.title}" not found`);
+              }
+              if (candidates.length > 1) {
+                results.push({
+                  action,
+                  success: false,
+                  ambiguous: true,
+                  candidates,
+                });
+                continue;
+              }
+              action.id = candidates[0].id;
+            }
+          }
+
           const executed = await executeCrudAction(c, action, familyId);
           results.push({ action, success: true, result: executed });
         } catch (error) {
@@ -548,5 +635,52 @@ export function aiRoutes(app: Hono<{ Bindings: Env }>) {
       console.error('[AI Execute] Failed:', error);
       return bad(c, `Failed to parse or execute CRUD actions: ${String(error)}`);
     }
+  });
+
+  app.post('/api/ai/confirm', async (c) => {
+    const user = c.get('user');
+    if (!user) return c.json({ success: false, error: 'Unauthorized' }, 401);
+
+    const body = await c.req.json<{
+      familyId?: string;
+      action?: CrudAction;
+      confirmedId?: string;
+      actions?: Array<{ action: CrudAction; confirmedId: string }>;
+    }>();
+
+    const familyId = body.familyId;
+    if (!familyId) return bad(c, 'familyId required');
+    if (!user.familyIds.includes(familyId)) return bad(c, '无权操作该家庭');
+
+    const pendingActions = body.actions?.length
+      ? body.actions
+      : body.action && body.confirmedId
+      ? [{ action: body.action, confirmedId: body.confirmedId }]
+      : [];
+
+    if (!pendingActions.length) return bad(c, 'action(s) and confirmedId(s) required');
+
+    const results = [];
+    for (const item of pendingActions) {
+      const action = { ...item.action };
+      const confirmedId = item.confirmedId;
+      if (!confirmedId) {
+        results.push({ action, success: false, error: 'confirmedId required' });
+        continue;
+      }
+      action.id = confirmedId;
+
+      try {
+        const executed = await executeCrudAction(c, action, familyId);
+        results.push({ action, success: true, result: executed });
+      } catch (error) {
+        results.push({ action, success: false, error: String(error) });
+      }
+    }
+
+    return ok(c, {
+      success: true,
+      results,
+    });
   });
 }
