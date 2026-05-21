@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { ContactSelector } from "@/components/ContactSelector";
 import { api } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -29,6 +30,8 @@ type VoiceCommandResponse = {
   actions: VoiceActionResult[];
 };
 
+const CREATE_NEW_CONTACT_OPTION = "__CREATE_NEW_CONTACT__";
+
 const blobToBase64 = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -38,7 +41,7 @@ const blobToBase64 = (blob: Blob) =>
         const base64 = result.split(',')[1] || '';
         resolve(base64);
       } else {
-        reject(new Error('无法读取音频')); 
+        reject(new Error('无法读取音频'));
       }
     };
     reader.onerror = reject;
@@ -59,6 +62,7 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
   const [result, setResult] = React.useState<VoiceCommandResponse | null>(null);
   const [historyActions, setHistoryActions] = React.useState<VoiceActionResult[]>([]);
   const [ambiguousSelections, setAmbiguousSelections] = React.useState<Record<string, string>>({});
+  const [contactSelectorValues, setContactSelectorValues] = React.useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -99,7 +103,9 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
   React.useEffect(() => {
     if (!open) {
       setRecording(false);
-      mediaRecorder?.state === 'recording' && mediaRecorder.stop();
+      if (mediaRecorder?.state === 'recording') {
+        mediaRecorder.stop();
+      }
       setMediaRecorder(null);
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
@@ -109,6 +115,7 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
       setResult(null);
       setHistoryActions([]);
       setAmbiguousSelections({});
+      setContactSelectorValues({});
       setAudioBlob(null);
       setAudioUrl(null);
       setTextCommand('');
@@ -166,7 +173,9 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
     }
-    mediaRecorder?.state === 'recording' && mediaRecorder.stop();
+    if (mediaRecorder?.state === 'recording') {
+      mediaRecorder.stop();
+    }
     setMediaRecorder(null);
     setStream(null);
     setRecording(false);
@@ -259,10 +268,47 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
     return JSON.stringify(action);
   };
 
+  const formatCandidateDetail = (candidate: any, table: string) => {
+    const formatDate = (value: unknown) => {
+      if (typeof value === 'number') return new Date(value).toLocaleDateString();
+      if (typeof value === 'string') return value;
+      return '';
+    };
+
+    if (table === 'contacts') {
+      return candidate.remarks ? candidate.remarks : '';
+    }
+
+    if (table === 'ledgers') {
+      const dateText = candidate.date ? formatDate(candidate.date) : '';
+      const descText = candidate.description ? candidate.description : '';
+      return [dateText, descText].filter(Boolean).join(' · ');
+    }
+
+    return '';
+  };
+
+  const clearPreviousRecording = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+    setAudioBlob(null);
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    setMediaRecorder(null);
+    setRecording(false);
+  };
+
   const getActionKey = (action: any, index: number) => `${action.table}-${action.operation}-${index}`;
 
-  const handleSelectCandidate = (key: string, candidateId: string) => {
+  const handleSelectCandidate = (key: string, candidateId: string, label?: string) => {
     setAmbiguousSelections((prev) => ({ ...prev, [key]: candidateId }));
+    if (label) {
+      setContactSelectorValues((prev) => ({ ...prev, [key]: label }));
+    }
   };
 
   const handleConfirmSelected = async () => {
@@ -273,7 +319,7 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
 
     const ambiguousItems = result?.actions
       .map((item, index) => ({ item, index, key: getActionKey(item.action, index) }))
-      .filter(({ item }) => item.ambiguous && item.candidates?.length > 0);
+      .filter(({ item }) => item.ambiguous);
 
     const actionsToConfirm = ambiguousItems
       .filter(({ key }) => ambiguousSelections[key])
@@ -339,6 +385,7 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
 
       setResult(response);
       setHistoryActions((prev) => [...prev, ...response.actions]);
+      clearPreviousRecording();
       toast.success(t('voiceCommand.toast.executed'));
     } catch (err: any) {
       console.error(t('voiceCommand.errors.executeFail'), err);
@@ -435,32 +482,72 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
               {result.actions.some((item) => item.ambiguous) && (
                 <div className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
                   <p className="text-sm font-semibold text-amber-900">{t('voiceCommand.ambiguousTitle')}</p>
-                  {result.actions.map((item, index) =>
-                    item.ambiguous ? (
+                  {result.actions.map((item, index) => {
+                    if (!item.ambiguous) {
+                      return null;
+                    }
+                    const key = getActionKey(item.action, index);
+                    return (
                       <div key={index} className="rounded-2xl border border-amber-200 bg-amber-100 p-3">
                         <p className="text-sm font-semibold text-slate-900">{t('voiceCommand.candidateAction', { index: index + 1 })}</p>
                         <p className="text-xs text-slate-600 mt-1">{formatActionSummary(item.action)}</p>
+                        {item.candidates?.length === 0 && item.action.table === 'records' ? (
+                          <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 mt-3">
+                            <p className="text-sm font-semibold text-slate-900">{t('voiceCommand.recordNoContactTitle')}</p>
+                            <p className="text-xs text-slate-600">{t('voiceCommand.recordNoContactDescription', { name: item.action.data.personName || '' })}</p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <Button
+                                type="button"
+                                variant={ambiguousSelections[key] === CREATE_NEW_CONTACT_OPTION ? 'secondary' : 'outline'}
+                                size="sm"
+                                className="justify-start rounded-2xl border p-4 text-left transition-all duration-150"
+                                onClick={() => handleSelectCandidate(key, CREATE_NEW_CONTACT_OPTION)}
+                              >
+                                <div className="text-sm font-semibold leading-snug">{t('voiceCommand.createContactAndExecute')}</div>
+                                <div className="mt-1 text-xs leading-snug text-slate-500">{t('voiceCommand.createContactAndExecuteHint')}</div>
+                              </Button>
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <p className="text-sm font-semibold text-slate-900">{t('voiceCommand.selectExistingContact')}</p>
+                                <ContactSelector
+                                  value={contactSelectorValues[key] || item.action.data.personName || ''}
+                                  onSelect={(contact) => handleSelectCandidate(key, contact.id || contact.name, contact.name)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           {item.candidates?.map((candidate) => {
-                            const key = getActionKey(item.action, index);
                             const selected = ambiguousSelections[key] === candidate.id;
                             const label = candidate.name || candidate.title || candidate.id;
+                            const details = formatCandidateDetail(candidate, item.action.table);
                             return (
                               <Button
                                 key={candidate.id}
                                 variant={selected ? 'secondary' : 'outline'}
                                 size="sm"
-                                className="justify-start"
+                                className={
+                                  `justify-start rounded-2xl border p-4 text-left transition-all duration-150 ${selected
+                                    ? 'border-slate-900 bg-slate-900 text-white shadow-lg'
+                                    : 'border-slate-200 bg-white text-slate-900 hover:border-slate-400'
+                                  }`
+                                }
                                 onClick={() => handleSelectCandidate(key, candidate.id)}
                               >
-                                <span className="truncate">{label}</span>
+                                <div className="w-full">
+                                  <div className="text-sm font-semibold leading-snug">{label}</div>
+                                  {details ? (
+                                    <div className="mt-1 text-xs leading-snug text-slate-500">{details}</div>
+                                  ) : null}
+                                </div>
                               </Button>
                             );
                           })}
                         </div>
                       </div>
-                    ) : null,
-                  )}
+                    );
+                  })}
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-xs text-slate-500">
                       {t('voiceCommand.candidateHelp')}
