@@ -172,6 +172,7 @@ records create: { type, amount, personName, eventType, ledgerTitle?, description
 - eventType: 类别（wedding、birthday、graduation、baby、first_birthday、festival、moving、visit、funeral、other）
 - ledgerTitle: 可选，指定账本标题；不提供则创建不关联账本的记录
 - timestamp: 可选，日期字符串或时间戳
+- description: 可选，尽量根据文本生成描述说明
 
 【重点】
 - 不要生成 id 字段，后端会自动处理名称匹配

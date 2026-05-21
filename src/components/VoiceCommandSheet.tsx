@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ContactSelector } from "@/components/ContactSelector";
 import { api } from "@/lib/api-client";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from '@/hooks/use-auth';
+import { useAudioRecorder } from '@/hooks/use-audio-recorder';
 import { toast } from "sonner";
 import { Mic2, StopCircle, RefreshCcw, Play } from "lucide-react";
 
@@ -16,13 +17,48 @@ interface VoiceCommandSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type SupportedTable = 'contacts' | 'ledgers' | 'records';
+type SupportedCrudOp = 'create' | 'update' | 'delete';
+
+interface VoiceAction {
+  table: SupportedTable;
+  operation: SupportedCrudOp;
+  id?: string;
+  data: Record<string, any>;
+}
+
+interface ContactCandidate {
+  id: string;
+  name: string;
+  remarks?: string;
+}
+
+interface LedgerCandidate {
+  id: string;
+  title: string;
+  date?: number | string;
+  description?: string;
+}
+
+type GenericCandidate = {
+  id: string;
+} & Record<string, unknown>;
+
+type VoiceActionCandidate = ContactCandidate | LedgerCandidate | GenericCandidate;
+
+const isContactCandidate = (candidate: VoiceActionCandidate): candidate is ContactCandidate =>
+  'name' in candidate && typeof candidate.name === 'string';
+
+const isLedgerCandidate = (candidate: VoiceActionCandidate): candidate is LedgerCandidate =>
+  'title' in candidate && typeof candidate.title === 'string';
+
 type VoiceActionResult = {
-  action: any;
+  action: VoiceAction;
   success: boolean;
-  result?: any;
+  result?: unknown;
   error?: string;
   ambiguous?: boolean;
-  candidates?: any[];
+  candidates?: VoiceActionCandidate[];
 };
 
 type VoiceCommandResponse = {
@@ -50,14 +86,18 @@ const blobToBase64 = (blob: Blob) =>
 
 export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps) {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [recording, setRecording] = React.useState(false);
-  const [mediaRecorder, setMediaRecorder] = React.useState<MediaRecorder | null>(null);
-  const [stream, setStream] = React.useState<MediaStream | null>(null);
-  const [audioBlob, setAudioBlob] = React.useState<Blob | null>(null);
-  const [audioUrl, setAudioUrl] = React.useState<string | null>(null);
+  const {
+    recording,
+    audioBlob,
+    audioUrl,
+    isSupported,
+    startRecording,
+    stopRecording,
+    resetRecording,
+  } = useAudioRecorder();
   const [textCommand, setTextCommand] = React.useState('');
   const [result, setResult] = React.useState<VoiceCommandResponse | null>(null);
   const [historyActions, setHistoryActions] = React.useState<VoiceActionResult[]>([]);
@@ -65,17 +105,6 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
   const [contactSelectorValues, setContactSelectorValues] = React.useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
-    };
-  }, [stream, audioUrl]);
 
   const prevOpenRef = React.useRef(open);
 
@@ -102,93 +131,48 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
 
   React.useEffect(() => {
     if (!open) {
-      setRecording(false);
-      if (mediaRecorder?.state === 'recording') {
-        mediaRecorder.stop();
-      }
-      setMediaRecorder(null);
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-      setStream(null);
+      resetRecording();
       setError(null);
       setResult(null);
       setHistoryActions([]);
       setAmbiguousSelections({});
       setContactSelectorValues({});
-      setAudioBlob(null);
-      setAudioUrl(null);
       setTextCommand('');
     }
-  }, [open, mediaRecorder, stream]);
+  }, [open, resetRecording]);
 
-  const startRecording = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
+  const startRecordingWithError = async () => {
+    if (!isSupported) {
       setError(t('voiceCommand.errors.noMicrophone'));
       return;
     }
 
     try {
       setError(null);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(mediaStream);
-      const chunks: BlobPart[] = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
-        setRecording(false);
-      };
-
-      recorder.start();
-      setStream(mediaStream);
-      setMediaRecorder(recorder);
-      setRecording(true);
+      await startRecording();
       setResult(null);
-      setError(null);
     } catch (err) {
       console.error(t('voiceCommand.errors.microphoneFail'), err);
       setError(t('voiceCommand.errors.microphoneFail'));
     }
   };
 
-  const stopRecording = () => {
-    if (!mediaRecorder) return;
+  const stopRecordingWithError = () => {
     try {
-      mediaRecorder.stop();
+      stopRecording();
     } catch (err) {
       console.error(t('voiceCommand.errors.stopFailed'), err);
       setError(t('voiceCommand.errors.stopFailed'));
     }
   };
 
-  const resetRecording = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
-    if (mediaRecorder?.state === 'recording') {
-      mediaRecorder.stop();
-    }
-    setMediaRecorder(null);
-    setStream(null);
-    setRecording(false);
-    setAudioBlob(null);
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-      setAudioUrl(null);
-    }
+  const resetRecordingWithError = () => {
+    resetRecording();
     setResult(null);
     setError(null);
   };
 
-  const formatActionSummary = (action: any) => {
+  const formatActionSummary = (action: VoiceAction) => {
     if (!action || !action.table || !action.operation) return JSON.stringify(action);
     const data = action.data || {};
     const formatDate = (value: unknown) => {
@@ -268,18 +252,18 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
     return JSON.stringify(action);
   };
 
-  const formatCandidateDetail = (candidate: any, table: string) => {
+  const formatCandidateDetail = (candidate: VoiceActionCandidate, table: string) => {
     const formatDate = (value: unknown) => {
       if (typeof value === 'number') return new Date(value).toLocaleDateString();
       if (typeof value === 'string') return value;
       return '';
     };
 
-    if (table === 'contacts') {
+    if (table === 'contacts' && isContactCandidate(candidate)) {
       return candidate.remarks ? candidate.remarks : '';
     }
 
-    if (table === 'ledgers') {
+    if (table === 'ledgers' && isLedgerCandidate(candidate)) {
       const dateText = candidate.date ? formatDate(candidate.date) : '';
       const descText = candidate.description ? candidate.description : '';
       return [dateText, descText].filter(Boolean).join(' · ');
@@ -289,20 +273,10 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
   };
 
   const clearPreviousRecording = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-    setAudioBlob(null);
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl);
-      setAudioUrl(null);
-    }
-    setMediaRecorder(null);
-    setRecording(false);
+    resetRecording();
   };
 
-  const getActionKey = (action: any, index: number) => `${action.table}-${action.operation}-${index}`;
+  const getActionKey = (action: VoiceAction, index: number) => `${action.table}-${action.operation}-${index}`;
 
   const handleSelectCandidate = (key: string, candidateId: string, label?: string) => {
     setAmbiguousSelections((prev) => ({ ...prev, [key]: candidateId }));
@@ -367,9 +341,10 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
     setError(null);
 
     try {
+      const language = i18n.language?.startsWith('en') ? 'en' : 'zh';
       const payload: Record<string, unknown> = {
         familyId: user.activeFamilyId,
-        language: 'zh',
+        language,
       };
 
       if (audioBlob && !textCommand.trim()) {
@@ -412,15 +387,19 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
                 <Button
                   variant={recording ? 'destructive' : 'secondary'}
                   size="sm"
-                  onClick={recording ? stopRecording : startRecording}
+                  onClick={recording ? stopRecordingWithError : startRecordingWithError}
+                  disabled={!isSupported && !recording}
                 >
                   {recording ? <StopCircle className="h-4 w-4" /> : <Mic2 className="h-4 w-4" />}
                   {recording ? t('voiceCommand.stop') : t('voiceCommand.start')}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={resetRecording}>
+                <Button variant="ghost" size="sm" onClick={resetRecordingWithError}>
                   <RefreshCcw className="h-4 w-4" /> {t('voiceCommand.reRecord')}
                 </Button>
               </div>
+              {!isSupported && (
+                <p className="text-xs text-rose-500 mt-2">{t('voiceCommand.errors.noMicrophone')}</p>
+              )}
             </div>
             {audioUrl && (
               <div className="mt-4 rounded-3xl bg-white p-3 border border-slate-200">
@@ -522,7 +501,7 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
                               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                                 <p className="text-sm font-semibold text-slate-900">{t('voiceCommand.selectExistingContact')}</p>
                                 <ContactSelector
-                                  value={contactSelectorValues[key] || item.action.data.personName || ''}
+                                  value={contactSelectorValues[key] || item?.action?.data?.personName || ''}
                                   onSelect={(contact) => handleSelectCandidate(key, contact.id || contact.name, contact.name)}
                                 />
                               </div>
@@ -533,7 +512,11 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           {item.candidates?.map((candidate) => {
                             const selected = ambiguousSelections[key] === candidate.id;
-                            const label = candidate.name || candidate.title || candidate.id;
+                            const label = isContactCandidate(candidate)
+                              ? candidate.name
+                              : isLedgerCandidate(candidate)
+                                ? candidate.title
+                                : candidate.id;
                             const details = formatCandidateDetail(candidate, item.action.table);
                             return (
                               <div
