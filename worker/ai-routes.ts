@@ -169,7 +169,7 @@ records create: { type, amount, personName, eventType, ledgerTitle?, description
 - type: "give" 或 "receive"
 - amount: 数字
 - personName: 人名
-- eventType: 类别（如 "wedding", "birthday" 等）
+- eventType: 类别（wedding、birthday、graduation、baby、first_birthday、festival、moving、visit、funeral、other）
 - ledgerTitle: 可选，指定账本标题；不提供则创建不关联账本的记录
 - timestamp: 可选，日期字符串或时间戳
 
@@ -389,7 +389,7 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
       // 通过 name 查询联系人 ID
       const id = await resolveContactIdByName(c, familyId, name);
       if (!id) throw new Error(`Contact with name "${name}" not found`);
-      
+
       const contact = await ContactEntity.getById(c.env.DB, id);
       if (!contact || contact.familyId !== familyId) throw new Error('Contact not found or family mismatch');
       await ContactEntity.delete(c.env.DB, id);
@@ -458,6 +458,23 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
         throw new Error('Record create requires: type, amount, personName, eventType');
       }
 
+      let contactId: string | null = null;
+      if (typeof action.id === 'string' && action.id !== '__CREATE_NEW_CONTACT__') {
+        contactId = action.id;
+      }
+      if (!contactId && action.id === '__CREATE_NEW_CONTACT__') {
+        const contactName = typeof data.personName === 'string' ? data.personName : undefined;
+        if (!contactName) throw new Error('personName is required to create a new contact');
+        const newContactId = crypto.randomUUID();
+        await ContactEntity.create(c.env.DB, {
+          id: newContactId,
+          familyId,
+          name: contactName,
+          updatedAt: Date.now(),
+        } as any);
+        contactId = newContactId;
+      }
+
       // ledgerTitle 是可选的；如果提供，需要查询对应的 ledger_id
       let ledgerId: string | null = null;
       if (typeof data.ledgerTitle === 'string') {
@@ -470,7 +487,7 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
         id,
         familyId,
         ledgerId,
-        contactId: null, // records create 不支持通过 contactName 创建
+        contactId,
         type,
         amount,
         personName,
@@ -584,6 +601,30 @@ export function aiRoutes(app: Hono<{ Bindings: Env }>) {
       const results: any[] = [];
       for (const action of actions) {
         try {
+          // 处理 records create 的 personName 联系人匹配
+          if (action.table === 'records' && action.operation === 'create' && typeof action.data.personName === 'string') {
+            const candidates = await resolveContactCandidatesByName(c, familyId, action.data.personName);
+            if (candidates.length === 1) {
+              action.id = candidates[0].id;
+            } else if (candidates.length > 1) {
+              results.push({
+                action,
+                success: false,
+                ambiguous: true,
+                candidates,
+              });
+              continue;
+            } else {
+              results.push({
+                action,
+                success: false,
+                ambiguous: true,
+                candidates: [],
+              });
+              continue;
+            }
+          }
+
           // 对于名字或标题匹配的 update/delete 操作，先检查是否存在多条匹配结果
           if ((action.table === 'contacts' || action.table === 'ledgers') && (action.operation === 'update' || action.operation === 'delete') && !action.id) {
             if (action.table === 'contacts' && typeof action.data.name === 'string') {
@@ -655,8 +696,8 @@ export function aiRoutes(app: Hono<{ Bindings: Env }>) {
     const pendingActions = body.actions?.length
       ? body.actions
       : body.action && body.confirmedId
-      ? [{ action: body.action, confirmedId: body.confirmedId }]
-      : [];
+        ? [{ action: body.action, confirmedId: body.confirmedId }]
+        : [];
 
     if (!pendingActions.length) return bad(c, 'action(s) and confirmedId(s) required');
 
