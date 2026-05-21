@@ -14,6 +14,7 @@ interface CrudAction {
   table: SupportedTable;
   operation: SupportedCrudOp;
   id?: string;
+  ledgerId?: string;
   data: Record<string, unknown>;
 }
 
@@ -172,6 +173,7 @@ records create: { type, amount, personName, eventType, ledgerTitle?, description
 - eventType: 类别（wedding、birthday、graduation、baby、first_birthday、festival、moving、visit、funeral、other）
 - ledgerTitle: 可选，指定账本标题；不提供则创建不关联账本的记录
 - timestamp: 可选，日期字符串或时间戳
+- description: 可选，尽量根据文本生成描述说明
 
 【重点】
 - 不要生成 id 字段，后端会自动处理名称匹配
@@ -475,11 +477,14 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
         contactId = newContactId;
       }
 
-      // ledgerTitle 是可选的；如果提供，需要查询对应的 ledger_id
+      // ledgerTitle 是可选的；如果提供，需要查询对应的 ledger_id。
+      // 否则可使用传入的当前账本 ledgerId。
       let ledgerId: string | null = null;
       if (typeof data.ledgerTitle === 'string') {
         ledgerId = await resolveLedgerIdByTitle(c, familyId, data.ledgerTitle);
         if (!ledgerId) throw new Error(`Ledger with title "${data.ledgerTitle}" not found`);
+      } else if (typeof action.ledgerId === 'string') {
+        ledgerId = action.ledgerId;
       }
 
       const id = crypto.randomUUID();
@@ -573,6 +578,7 @@ export function aiRoutes(app: Hono<{ Bindings: Env }>) {
       audioBase64?: string;
       language?: string;
       familyId?: string;
+      ledgerId?: string;
     }>();
 
     const familyId = body.familyId;
@@ -598,6 +604,13 @@ export function aiRoutes(app: Hono<{ Bindings: Env }>) {
 
     try {
       const actions = await parseTextToActions(c.env.AI, instruction);
+      if (body.ledgerId) {
+        for (const action of actions) {
+          if (action.table === 'records' && action.operation === 'create' && !action.data.ledgerTitle) {
+            action.ledgerId = body.ledgerId;
+          }
+        }
+      }
       const results: any[] = [];
       for (const action of actions) {
         try {

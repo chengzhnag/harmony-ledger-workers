@@ -1,8 +1,9 @@
 import React, { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, BookText, PieChart, Settings, Plus } from "lucide-react";
+import { Home, BookText, PieChart, Settings, Plus, Mic2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AddRecordSheet } from "@/components/AddRecordSheet";
+import { VoiceCommandSheet } from "@/components/VoiceCommandSheet";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 interface MobileLayoutProps {
@@ -12,6 +13,7 @@ export function MobileLayout({ children }: MobileLayoutProps) {
   const { t } = useTranslation();
   const location = useLocation();
   const [isAddOpen, setIsAddOpen] = React.useState(false);
+  const [isVoiceOpen, setIsVoiceOpen] = React.useState(false);
   const navItems = [
     { icon: Home, label: t('nav.home'), path: "/" },
     { icon: BookText, label: t('nav.ledgers'), path: "/ledgers" },
@@ -65,17 +67,28 @@ export function MobileLayout({ children }: MobileLayoutProps) {
         </div>
       </nav>
       {/* Floating Action Button */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:bottom-10">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 md:bottom-10 flex items-center gap-3">
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => setIsVoiceOpen(true)}
+          className="bg-white text-slate-700 p-3 rounded-full shadow-lg shadow-slate-200 ring-2 ring-white border border-slate-100"
+          aria-label="语音指令"
+        >
+          <Mic2 className="h-5 w-5" />
+        </motion.button>
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
           onClick={() => setIsAddOpen(true)}
           className="bg-[#E63946] text-white p-4 rounded-full shadow-lg shadow-rose-500/30 ring-4 ring-white"
+          aria-label="新增记录"
         >
           <Plus className="h-6 w-6" />
         </motion.button>
       </div>
       <AddRecordSheet open={isAddOpen} onOpenChange={setIsAddOpen} />
+      <VoiceCommandSheet open={isVoiceOpen} onOpenChange={setIsVoiceOpen} />
     </div>
   );
 }
