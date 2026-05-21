@@ -14,6 +14,7 @@ interface CrudAction {
   table: SupportedTable;
   operation: SupportedCrudOp;
   id?: string;
+  ledgerId?: string;
   data: Record<string, unknown>;
 }
 
@@ -476,11 +477,14 @@ const executeCrudAction = async (c: any, action: CrudAction, familyId: string) =
         contactId = newContactId;
       }
 
-      // ledgerTitle 是可选的；如果提供，需要查询对应的 ledger_id
+      // ledgerTitle 是可选的；如果提供，需要查询对应的 ledger_id。
+      // 否则可使用传入的当前账本 ledgerId。
       let ledgerId: string | null = null;
       if (typeof data.ledgerTitle === 'string') {
         ledgerId = await resolveLedgerIdByTitle(c, familyId, data.ledgerTitle);
         if (!ledgerId) throw new Error(`Ledger with title "${data.ledgerTitle}" not found`);
+      } else if (typeof action.ledgerId === 'string') {
+        ledgerId = action.ledgerId;
       }
 
       const id = crypto.randomUUID();
@@ -574,6 +578,7 @@ export function aiRoutes(app: Hono<{ Bindings: Env }>) {
       audioBase64?: string;
       language?: string;
       familyId?: string;
+      ledgerId?: string;
     }>();
 
     const familyId = body.familyId;
@@ -599,6 +604,13 @@ export function aiRoutes(app: Hono<{ Bindings: Env }>) {
 
     try {
       const actions = await parseTextToActions(c.env.AI, instruction);
+      if (body.ledgerId) {
+        for (const action of actions) {
+          if (action.table === 'records' && action.operation === 'create' && !action.data.ledgerTitle) {
+            action.ledgerId = body.ledgerId;
+          }
+        }
+      }
       const results: any[] = [];
       for (const action of actions) {
         try {

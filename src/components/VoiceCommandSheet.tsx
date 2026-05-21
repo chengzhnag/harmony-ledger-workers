@@ -1,10 +1,11 @@
 import * as React from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useMatch } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { ContactSelector } from "@/components/ContactSelector";
 import { api } from "@/lib/api-client";
 import { useAuth } from '@/hooks/use-auth';
@@ -24,6 +25,7 @@ interface VoiceAction {
   table: SupportedTable;
   operation: SupportedCrudOp;
   id?: string;
+  ledgerId?: string;
   data: Record<string, any>;
 }
 
@@ -88,6 +90,9 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
   const { user } = useAuth();
   const { t, i18n } = useTranslation();
   const location = useLocation();
+  const ledgerMatch = useMatch('/ledgers/:ledgerId');
+  const currentLedgerId = ledgerMatch?.params.ledgerId;
+  const [useCurrentLedger, setUseCurrentLedger] = React.useState(false);
   const queryClient = useQueryClient();
   const {
     recording,
@@ -138,8 +143,15 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
       setAmbiguousSelections({});
       setContactSelectorValues({});
       setTextCommand('');
+      setUseCurrentLedger(false);
     }
   }, [open, resetRecording]);
+
+  React.useEffect(() => {
+    if (!ledgerMatch) {
+      setUseCurrentLedger(false);
+    }
+  }, [ledgerMatch]);
 
   const startRecordingWithError = async () => {
     if (!isSupported) {
@@ -347,6 +359,10 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
         language,
       };
 
+      if (useCurrentLedger && currentLedgerId) {
+        payload.ledgerId = currentLedgerId;
+      }
+
       if (audioBlob && !textCommand.trim()) {
         payload.audioBase64 = await blobToBase64(audioBlob);
       } else {
@@ -377,6 +393,21 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
           <SheetTitle className="text-center text-xl font-bold">{t('voiceCommand.title')}</SheetTitle>
         </SheetHeader>
         <div className="mt-6 space-y-6">
+          {currentLedgerId && (
+            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{t('voiceCommand.currentLedgerToggle')}</p>
+                  <p className="text-xs text-slate-500 mt-1">{t('voiceCommand.currentLedgerToggleDescription')}</p>
+                </div>
+                <Switch
+                  checked={useCurrentLedger}
+                  onCheckedChange={setUseCurrentLedger}
+                  aria-label={t('voiceCommand.currentLedgerToggle')}
+                />
+              </div>
+            </div>
+          )}
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
