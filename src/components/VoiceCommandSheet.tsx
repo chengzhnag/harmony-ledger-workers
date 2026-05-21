@@ -467,7 +467,7 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
             >
               {isProcessing ? t('voiceCommand.loading.execute') : t('voiceCommand.send')}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
               {t('voiceCommand.close')}
             </Button>
           </div>
@@ -496,16 +496,29 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
                             <p className="text-sm font-semibold text-slate-900">{t('voiceCommand.recordNoContactTitle')}</p>
                             <p className="text-xs text-slate-600">{t('voiceCommand.recordNoContactDescription', { name: item.action.data.personName || '' })}</p>
                             <div className="grid gap-2 sm:grid-cols-2">
-                              <Button
-                                type="button"
-                                variant={ambiguousSelections[key] === CREATE_NEW_CONTACT_OPTION ? 'secondary' : 'outline'}
-                                size="sm"
-                                className="justify-start rounded-2xl border p-4 text-left transition-all duration-150"
+                              <div
+                                key="create-new-contact"
+                                role="button"
+                                tabIndex={0}
+                                className={`
+                                  flex items-start rounded-xl border p-4 text-left transition-all duration-200
+                                  cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-200
+                                  ${ambiguousSelections[key] === CREATE_NEW_CONTACT_OPTION
+                                    ? 'border-rose-400 bg-rose-50 text-rose-900 hover:bg-rose-100'
+                                    : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50'
+                                  }
+                                `}
                                 onClick={() => handleSelectCandidate(key, CREATE_NEW_CONTACT_OPTION)}
                               >
-                                <div className="text-sm font-semibold leading-snug">{t('voiceCommand.createContactAndExecute')}</div>
-                                <div className="mt-1 text-xs leading-snug text-slate-500">{t('voiceCommand.createContactAndExecuteHint')}</div>
-                              </Button>
+                                <div className="w-full">
+                                  <div className="text-sm font-medium leading-snug">
+                                    {t('voiceCommand.createContactAndExecute')}
+                                  </div>
+                                  <div className="mt-1 text-xs text-slate-500">
+                                    {t('voiceCommand.createContactAndExecuteHint')}
+                                  </div>
+                                </div>
+                              </div>
                               <div className="rounded-2xl border border-slate-200 bg-white p-4">
                                 <p className="text-sm font-semibold text-slate-900">{t('voiceCommand.selectExistingContact')}</p>
                                 <ContactSelector
@@ -523,25 +536,27 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
                             const label = candidate.name || candidate.title || candidate.id;
                             const details = formatCandidateDetail(candidate, item.action.table);
                             return (
-                              <Button
+                              <div
                                 key={candidate.id}
-                                variant={selected ? 'secondary' : 'outline'}
-                                size="sm"
-                                className={
-                                  `justify-start rounded-2xl border p-4 text-left transition-all duration-150 ${selected
-                                    ? 'border-slate-900 bg-slate-900 text-white shadow-lg'
-                                    : 'border-slate-200 bg-white text-slate-900 hover:border-slate-400'
-                                  }`
-                                }
+                                role="button"
+                                tabIndex={0}
+                                className={`
+                                  flex items-start rounded-xl border p-4 text-left transition-all duration-200 
+                                  cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-300
+                                  ${selected
+                                    ? 'border-rose-500 bg-rose-50 text-rose-900 hover:bg-rose-100'
+                                    : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50'
+                                  }
+                                `}
                                 onClick={() => handleSelectCandidate(key, candidate.id)}
                               >
                                 <div className="w-full">
-                                  <div className="text-sm font-semibold leading-snug">{label}</div>
-                                  {details ? (
-                                    <div className="mt-1 text-xs leading-snug text-slate-500">{details}</div>
-                                  ) : null}
+                                  <div className="text-sm font-medium leading-snug">{label}</div>
+                                  {details && (
+                                    <div className="mt-1 text-xs text-slate-500">{details}</div>
+                                  )}
                                 </div>
-                              </Button>
+                              </div>
                             );
                           })}
                         </div>
