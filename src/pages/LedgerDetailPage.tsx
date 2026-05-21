@@ -258,7 +258,7 @@ export function LedgerDetailPage() {
                       <div>
                         <h4 className="font-bold text-slate-800">{record.personName}</h4>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{t(EVENT_TYPES.find(et => et.value === record.eventType)?.label || record.eventType)}</span>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 whitespace-nowrap">{t(EVENT_TYPES.find(et => et.value === record.eventType)?.label || record.eventType)}</span>
                           {record.description && (
                             <>
                               <span className="text-[10px] text-slate-200">•</span>
@@ -270,7 +270,7 @@ export function LedgerDetailPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <p className={cn(
-                        "font-bold text-lg mr-2",
+                        "font-bold text-lg whitespace-nowrap",
                         record.type === 'receive' ? "text-emerald-600" : "text-rose-600"
                       )}>
                         {record.type === 'receive' ? '+' : '-'}¥{record.amount.toLocaleString()}

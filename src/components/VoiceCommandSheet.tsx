@@ -291,9 +291,42 @@ export function VoiceCommandSheet({ open, onOpenChange }: VoiceCommandSheetProps
   const getActionKey = (action: VoiceAction, index: number) => `${action.table}-${action.operation}-${index}`;
 
   const handleSelectCandidate = (key: string, candidateId: string, label?: string) => {
+    const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     setAmbiguousSelections((prev) => ({ ...prev, [key]: candidateId }));
     if (label) {
       setContactSelectorValues((prev) => ({ ...prev, [key]: label }));
+    }
+    if (label && result) {
+      setResult((prevResult) => {
+        if (!prevResult) return prevResult;
+        return {
+          ...prevResult,
+          actions: prevResult.actions.map((item, index) => {
+            const itemKey = getActionKey(item.action, index);
+            if (itemKey !== key) return item;
+            if (item.action.table !== 'records' || item.action.operation !== 'create') return item;
+            const previousPersonName = typeof item.action.data.personName === 'string' ? item.action.data.personName : '';
+            const originalDescription = item.action.data.description;
+            const updatedDescription =
+              typeof originalDescription === 'string' && previousPersonName
+                ? originalDescription.replace(new RegExp(escapeRegExp(previousPersonName), 'g'), label)
+                : originalDescription;
+            return {
+              ...item,
+              action: {
+                ...item.action,
+                id: candidateId,
+                data: {
+                  ...item.action.data,
+                  personName: label,
+                  description: updatedDescription,
+                },
+              },
+            };
+          }),
+        };
+      });
     }
   };
 
