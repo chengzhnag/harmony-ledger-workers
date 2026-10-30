@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port ${PORT:-3000}",
+    "dev:mock": "vite --config vite.mock.config.ts --host 0.0.0.0 --port ${PORT:-3001}",
     "build": "vite build",
     "lint": "eslint --cache -f json --quiet .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "bun run build && vite preview --host 0.0.0.0 --port ${PORT:-4173}",
     "deploy": "bun run build && wrangler deploy",
     "cf-typegen": "wrangler types"
@@ -95,6 +98,8 @@
     "@cloudflare/vite-plugin": "^1.17.1",
     "@cloudflare/workers-types": "^4.20250424.0",
     "@eslint/js": "^9.22.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.15.3",
     "@types/papaparse": "^5.5.2",
     "@types/qrcode": "^1.5.6",
@@ -106,11 +111,13 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "jsdom": "^30.1.3",
     "postcss": "^8.5.3",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwindcss": "^3.4.17",
     "typescript": "5.8",
     "typescript-eslint": "^8.26.1",
-    "vite": "^6.3.1"
+    "vite": "^6.3.1",
+    "vitest": "^5.0.5"
   }
 }

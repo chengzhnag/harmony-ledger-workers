@@ -1,4 +1,5 @@
 import { ApiResponse } from "../../shared/types"
+import { isUrlMockActive, mockUrlApiRequest } from '@/lib/url-mock-session';
 
 export interface ApiError {
   message: string;
@@ -12,6 +13,10 @@ export function createApiError(message: string, errorCode?: string): ApiError {
 }
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  if (isUrlMockActive()) {
+    return mockUrlApiRequest<T>(path, init);
+  }
+
   const fullPath = path.startsWith('https://') ? path : `${import.meta.env.VITE_API_URL}${path}`;
 
   // 从 localStorage 获取 token

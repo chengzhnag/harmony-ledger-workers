@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Check, ChevronsUpDown, UserPlus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,10 @@ export function ContactSelector({ value, onSelect }: ContactSelectorProps) {
   const [search, setSearch] = useState("");
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
 
-  const fetchContacts = async (query: string) => {
+  const fetchContacts = useCallback(async (query: string) => {
     if (!user?.activeFamilyId) return;
     setLoading(true);
     try {
@@ -32,20 +34,27 @@ export function ContactSelector({ value, onSelect }: ContactSelectorProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.activeFamilyId]);
 
   useEffect(() => {
     if (!user?.activeFamilyId) return;
     const timer = setTimeout(() => fetchContacts(search), 300);
     return () => clearTimeout(timer);
-  }, [user?.activeFamilyId, search]);
+  }, [fetchContacts, user?.activeFamilyId, search]);
 
   const selectedContact = contacts.find((c) => c.name === value);
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      setPortalContainer(triggerRef.current?.closest<HTMLElement>('[role="dialog"]') || null);
+    }
+    setOpen(nextOpen);
+  };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -55,9 +64,9 @@ export function ContactSelector({ value, onSelect }: ContactSelectorProps) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0 rounded-2xl border-none shadow-soft overflow-hidden" align="start" onOpenAutoFocus={(e) => e.preventDefault()} >
-        <Command shouldFilter={false} autoFocus={false}>
-          <div className="relative">
+      <PopoverContent portalContainer={portalContainer} className="w-[300px] max-h-[80vh] p-0 rounded-2xl border-none shadow-soft overflow-hidden" align="start" onOpenAutoFocus={(e) => e.preventDefault()} >
+        <Command className="h-auto max-h-[80vh]" shouldFilter={false} autoFocus={false}>
+          <div className="relative shrink-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
             <CommandInput
               placeholder={t('contacts.search')}
@@ -72,7 +81,7 @@ export function ContactSelector({ value, onSelect }: ContactSelectorProps) {
               </div>
             )}
           </div>
-          <CommandList className="max-h-[300px] overflow-y-auto overscroll-contain">
+          <CommandList className="min-h-0 max-h-[min(60vh,300px)] flex-1 overflow-y-auto overscroll-contain touch-pan-y">
             <CommandEmpty className="p-4 text-center">
               {loading ? (
                 <p className="text-sm text-slate-500">{t('common.loading')}</p>
