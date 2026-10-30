@@ -4,10 +4,19 @@ import { AuthContext } from './AuthContext';
 import { api } from '@/lib/api-client';
 import { toast } from 'sonner';
 import i18n from '@/i18n/config';
+import { getUrlMockUser } from '@/lib/url-mock';
+import { isUrlMockActive } from '@/lib/url-mock-session';
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
+    if (isUrlMockActive()) {
+      const mockUser = getUrlMockUser();
+      setUser(mockUser);
+      setIsLoading(false);
+      return;
+    }
+
     const stored = localStorage.getItem('harmony_user');
     if (stored) {
       try {

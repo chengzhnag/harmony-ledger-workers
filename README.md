@@ -205,6 +205,16 @@ bun run deploy
 | `bun run lint` | 运行 ESLint 检查 |
 | `bun run cf-typegen` | 生成 Cloudflare Worker 类型声明 |
 
+## 页面独立调试与自动化测试
+
+开发服务器支持 URL Mock，无需启动 Worker 或连接 D1：
+
+- `http://localhost:3000/?mock=1`：带固定演示数据打开首页
+- `http://localhost:3000/ledgers?mock=1`：打开账本页；其他前端路由也可使用相同参数
+- `http://localhost:3000/contacts?mock=empty`：使用空数据查看空状态
+
+Mock 仅在 Vite 开发模式生效，API 数据在当前标签页内存中维护，客户端路由跳转时会持续生效；使用 `?mock=off` 关闭。运行页面回归测试：`npm test`；监听模式：`npm run test:watch`。
+
 
 ## 🏋️‍♀️ 手动部署：Fork 项目 Cloudflare 部署
 

@@ -179,23 +179,23 @@ export function LedgersPage() {
                     <Link to={`/ledgers/${ledger.id}`} className="block no-underline group">
                       <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
                         <Card className="border-none shadow-soft rounded-2xl overflow-hidden group-hover:shadow-lg transition-all border-l-4 border-l-rose-500">
-                          <CardContent className="p-6 flex justify-between items-center pr-12">
-                            <div className="space-y-1.5">
-                              <h3 className="font-bold text-xl text-slate-800 group-hover:text-rose-600 transition-colors">{ledger.title}</h3>
-                              <div className="flex items-center text-xs text-slate-500 gap-4 font-medium">
-                                <span className="flex items-center gap-1">
+                          <CardContent className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 p-4 pr-14 sm:gap-x-5 sm:p-6 sm:pr-16">
+                            <div className="min-w-0">
+                              <h3 className="truncate text-lg font-bold text-slate-800 transition-colors group-hover:text-rose-600 sm:text-xl">{ledger.title}</h3>
+                              <div className="mt-1 flex min-w-0 flex-col items-start gap-1 text-xs font-medium text-slate-500 sm:flex-row sm:items-center sm:gap-4">
+                                <span className="flex shrink-0 items-center gap-1 whitespace-nowrap">
                                   <Calendar className="h-3 w-3 text-rose-400" />
                                   {format(ledger.date, 'yyyy-MM-dd', { locale: currentLocale })}
                                 </span>
-                                {ledger.description && <span className="bg-slate-50 px-2 py-0.5 rounded text-slate-400 line-clamp-1">{ledger.description}</span>}
+                                {ledger.description && <span className="block max-w-full truncate rounded bg-slate-50 px-2 py-0.5 text-slate-400 sm:max-w-52">{ledger.description}</span>}
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{t('ledgers.totalAmount')}</p>
-                              <div className="font-bold text-xl text-slate-900 mt-1">
-                                {ledger.totalReceived > 0 && <span className="text-emerald-600">+¥{ledger.totalReceived.toLocaleString()}</span>}
-                                {ledger.totalGiven > 0 && <span className="text-rose-600 ml-2">-¥{ledger.totalGiven.toLocaleString()}</span>}
-                                {ledger.totalReceived === 0 && ledger.totalGiven === 0 && <span className="text-slate-300">¥0</span>}
+                            <div className="min-w-0 text-right">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t('ledgers.totalAmount')}</p>
+                              <div className="mt-1 flex flex-col items-end gap-0.5 text-sm font-bold leading-tight text-slate-900 sm:text-base">
+                                {ledger.totalReceived > 0 && <span className="whitespace-nowrap text-emerald-600">+¥{ledger.totalReceived.toLocaleString()}</span>}
+                                {ledger.totalGiven > 0 && <span className="whitespace-nowrap text-rose-600">-¥{ledger.totalGiven.toLocaleString()}</span>}
+                                {ledger.totalReceived === 0 && ledger.totalGiven === 0 && <span className="whitespace-nowrap text-slate-300">¥0</span>}
                               </div>
                             </div>
                           </CardContent>
