@@ -23,11 +23,11 @@
   "ai": {
     "binding": "AI"
   },
-  // "d1_databases": [
-  //   {
-  //     "binding": "DB",
-  //     "database_name": "你的数据库名称",
-  //     "database_id": "你的数据库ID"
-  //   }
-  // ]
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "chengzhnag",
+      "database_id": "5c25cb91-5bff-4d81-96e4-04573ff380a8"
+    }
+  ]
 }
